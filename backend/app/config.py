@@ -2,6 +2,7 @@
 
 import os
 from functools import lru_cache
+from typing import List
 
 from pydantic_settings import BaseSettings
 
@@ -24,10 +25,49 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api"
 
+    # Scheduler settings
+    SCRAPE_INTERVAL_HOURS: int = 12  # 스크래핑 주기
+    MAX_ARTICLES_PER_DAY: int = 3  # 하루 최대 글 생성 수
+    AUTO_GENERATE_MIN_SCORE: float = 7.0  # 자동 생성 최소 relevance_score
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+
+
+# 스크래핑 소스 설정 (정적)
+SCRAPE_SOURCES = {
+    # arXiv 카테고리
+    "arxiv_categories": [
+        "cs.AI",   # Artificial Intelligence
+        "cs.LG",   # Machine Learning
+        "cs.CL",   # Computation and Language (NLP)
+    ],
+    # RSS 피드
+    "rss_feeds": [
+        {
+            "name": "TechCrunch AI",
+            "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
+        },
+        {
+            "name": "VentureBeat AI",
+            "url": "https://venturebeat.com/category/ai/feed/",
+        },
+        {
+            "name": "MIT Technology Review AI",
+            "url": "https://www.technologyreview.com/feed/",
+        },
+        {
+            "name": "Google AI Blog",
+            "url": "https://blog.google/technology/ai/rss/",
+        },
+        {
+            "name": "OpenAI Blog",
+            "url": "https://openai.com/blog/rss.xml",
+        },
+    ],
+}
 
 
 @lru_cache

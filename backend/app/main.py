@@ -1,22 +1,39 @@
 """FastAPI application entry point."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api.routes import articles, generate, sources
+from backend.app.api.routes import articles, generate, scheduler, sources
 from backend.app.config import settings
+from backend.app.scheduler.jobs import setup_scheduler, start_scheduler, stop_scheduler
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    print(f"Starting AI Blog Platform in {settings.APP_ENV} mode")
+    logger.info(f"Starting AI Blog Platform in {settings.APP_ENV} mode")
+
+    # Setup and start scheduler
+    setup_scheduler()
+    start_scheduler()
+    logger.info("Scheduler started: runs at 8 AM and 8 PM KST")
+
     yield
+
     # Shutdown
-    print("Shutting down AI Blog Platform")
+    stop_scheduler()
+    logger.info("Shutting down AI Blog Platform")
 
 
 app = FastAPI(
@@ -41,6 +58,7 @@ app.add_middleware(
 app.include_router(sources.router, prefix=settings.API_V1_PREFIX, tags=["sources"])
 app.include_router(articles.router, prefix=settings.API_V1_PREFIX, tags=["articles"])
 app.include_router(generate.router, prefix=settings.API_V1_PREFIX, tags=["generate"])
+app.include_router(scheduler.router, prefix=settings.API_V1_PREFIX, tags=["scheduler"])
 
 
 @app.get("/")

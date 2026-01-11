@@ -166,6 +166,16 @@ class ArticleRepository(BaseRepository):
         response = query.execute()
         return len(response.data) > 0 if response.data else False
 
+    async def count_since(self, since: datetime) -> int:
+        """Count articles created since a given datetime."""
+        response = (
+            self._query()
+            .select("*", count="exact")
+            .gte("created_at", since.isoformat())
+            .execute()
+        )
+        return response.count or 0
+
 
 class ArticleVersionRepository(BaseRepository):
     """Repository for article version history."""
