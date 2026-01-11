@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, useRef, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import {
   getArticleById,
+  getSourceById,
   updateArticle,
   updateArticleStatus,
   Article,
+  Source,
   formatDate,
 } from '@/lib/admin-api';
 
@@ -23,6 +25,7 @@ export default function ArticleEditorPage({
   const router = useRouter();
 
   const [article, setArticle] = useState<Article | null>(null);
+  const [source, setSource] = useState<Source | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +38,48 @@ export default function ArticleEditorPage({
   const [tags, setTags] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
 
+  // Markdown editor ref
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Insert markdown at cursor position
+  const insertMarkdown = useCallback((prefix: string, suffix: string = '', placeholder: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    const textToInsert = selectedText || placeholder;
+
+    const newContent =
+      content.substring(0, start) +
+      prefix +
+      textToInsert +
+      suffix +
+      content.substring(end);
+
+    setContent(newContent);
+
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + prefix.length + textToInsert.length + suffix.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  }, [content]);
+
+  // Markdown formatting functions
+  const formatBold = () => insertMarkdown('**', '**', 'bold text');
+  const formatItalic = () => insertMarkdown('*', '*', 'italic text');
+  const formatHeading2 = () => insertMarkdown('\n## ', '\n', 'Heading');
+  const formatHeading3 = () => insertMarkdown('\n### ', '\n', 'Subheading');
+  const formatLink = () => insertMarkdown('[', '](url)', 'link text');
+  const formatCode = () => insertMarkdown('`', '`', 'code');
+  const formatCodeBlock = () => insertMarkdown('\n```\n', '\n```\n', 'code block');
+  const formatQuote = () => insertMarkdown('\n> ', '\n', 'quote');
+  const formatBulletList = () => insertMarkdown('\n- ', '\n', 'list item');
+  const formatNumberedList = () => insertMarkdown('\n1. ', '\n', 'list item');
+
   useEffect(() => {
     async function loadArticle() {
       try {
@@ -44,8 +89,18 @@ export default function ArticleEditorPage({
         setTitle(data.title);
         setSubtitle(data.subtitle || '');
         setContent(data.content);
-        setTags(data.tags.join(', '));
+        setTags(data.tags?.join(', ') || '');
         setMetaDescription(data.meta_description || '');
+
+        // Load source if article has source_id
+        if (data.source_id) {
+          try {
+            const sourceData = await getSourceById(data.source_id);
+            setSource(sourceData);
+          } catch {
+            // Source may have been deleted
+          }
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load article');
       } finally {
@@ -167,6 +222,17 @@ export default function ArticleEditorPage({
               </span>
               {article.word_count && (
                 <span style={styles.metaText}>{article.word_count} words</span>
+              )}
+              {source && (
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.sourceLink}
+                  title={source.title}
+                >
+                  View Source ({source.type})
+                </a>
               )}
             </div>
           </div>
@@ -292,16 +358,78 @@ export default function ArticleEditorPage({
             <span style={styles.charCount}>{metaDescription.length}/160</span>
           </div>
 
-          {/* Content */}
+          {/* Content with Markdown Toolbar */}
           <div style={styles.formGroup}>
-            <label style={styles.label}>Content (Markdown)</label>
+            <div style={styles.editorHeader}>
+              <label style={styles.label}>Content (Markdown)</label>
+              <span style={styles.wordCount}>
+                {content.split(/\s+/).filter(Boolean).length} words | {content.length} chars
+              </span>
+            </div>
+
+            {/* Markdown Toolbar */}
+            <div style={styles.toolbar}>
+              <button type="button" onClick={formatBold} style={styles.toolbarButton} title="Bold (Ctrl+B)">
+                <strong>B</strong>
+              </button>
+              <button type="button" onClick={formatItalic} style={styles.toolbarButton} title="Italic (Ctrl+I)">
+                <em>I</em>
+              </button>
+              <span style={styles.toolbarDivider} />
+              <button type="button" onClick={formatHeading2} style={styles.toolbarButton} title="Heading 2">
+                H2
+              </button>
+              <button type="button" onClick={formatHeading3} style={styles.toolbarButton} title="Heading 3">
+                H3
+              </button>
+              <span style={styles.toolbarDivider} />
+              <button type="button" onClick={formatLink} style={styles.toolbarButton} title="Insert Link">
+                Link
+              </button>
+              <button type="button" onClick={formatCode} style={styles.toolbarButton} title="Inline Code">
+                {'</>'}
+              </button>
+              <button type="button" onClick={formatCodeBlock} style={styles.toolbarButton} title="Code Block">
+                {'{ }'}
+              </button>
+              <span style={styles.toolbarDivider} />
+              <button type="button" onClick={formatQuote} style={styles.toolbarButton} title="Quote">
+                &ldquo;&rdquo;
+              </button>
+              <button type="button" onClick={formatBulletList} style={styles.toolbarButton} title="Bullet List">
+                &bull; List
+              </button>
+              <button type="button" onClick={formatNumberedList} style={styles.toolbarButton} title="Numbered List">
+                1. List
+              </button>
+            </div>
+
             <textarea
+              ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               style={styles.textarea}
               placeholder="Write your article content in Markdown..."
               rows={30}
+              onKeyDown={(e) => {
+                // Keyboard shortcuts
+                if (e.ctrlKey || e.metaKey) {
+                  if (e.key === 'b') {
+                    e.preventDefault();
+                    formatBold();
+                  } else if (e.key === 'i') {
+                    e.preventDefault();
+                    formatItalic();
+                  } else if (e.key === 'k') {
+                    e.preventDefault();
+                    formatLink();
+                  }
+                }
+              }}
             />
+            <p style={styles.editorHint}>
+              Tip: Use Ctrl+B for bold, Ctrl+I for italic, Ctrl+K for link
+            </p>
           </div>
 
           {/* References */}
@@ -406,6 +534,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 13,
     color: '#6B7280',
   },
+  sourceLink: {
+    fontSize: 13,
+    color: '#3B82F6',
+    textDecoration: 'none',
+    padding: '4px 10px',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 4,
+  },
   headerActions: {
     display: 'flex',
     gap: 12,
@@ -493,16 +629,57 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'block',
     textAlign: 'right',
   },
+  editorHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  wordCount: {
+    fontSize: 13,
+    color: '#9CA3AF',
+  },
+  toolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '8px 12px',
+    backgroundColor: '#F9FAFB',
+    borderRadius: '8px 8px 0 0',
+    border: '1px solid #D1D5DB',
+    borderBottom: 'none',
+  },
+  toolbarButton: {
+    padding: '6px 10px',
+    fontSize: 13,
+    fontWeight: 500,
+    color: '#4B5563',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: 4,
+    cursor: 'pointer',
+  },
+  toolbarDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#D1D5DB',
+    margin: '0 6px',
+  },
   textarea: {
     width: '100%',
     padding: '16px',
     fontSize: 15,
     fontFamily: 'monospace',
     border: '1px solid #D1D5DB',
-    borderRadius: 8,
+    borderRadius: '0 0 8px 8px',
     outline: 'none',
     resize: 'vertical',
     lineHeight: 1.6,
+  },
+  editorHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 8,
   },
   referencesBox: {
     backgroundColor: '#F9FAFB',

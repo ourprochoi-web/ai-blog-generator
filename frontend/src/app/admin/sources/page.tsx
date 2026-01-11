@@ -2,13 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   getSources,
+  getArticles,
   updateSourceStatus,
   deleteSource,
   scrapeUrl,
   generateArticle,
   Source,
+  Article,
   formatRelativeTime,
 } from '@/lib/admin-api';
 
@@ -34,6 +37,9 @@ export default function SourcesPage() {
   const [scrapeUrl_, setScrapeUrl] = useState('');
   const [isScraping, setIsScraping] = useState(false);
 
+  // Source to Article mapping
+  const [sourceArticleMap, setSourceArticleMap] = useState<Map<string, Article>>(new Map());
+
   const loadSources = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -44,8 +50,29 @@ export default function SourcesPage() {
         typeFilter || undefined,
         statusFilter || undefined
       );
-      setSources(res.items);
-      setTotal(res.total);
+      setSources(res.items || []);
+      setTotal(res.total || 0);
+
+      // Load articles to map source_id -> article
+      const processedSourceIds = (res.items || [])
+        .filter((s: Source) => s.status === 'processed')
+        .map((s: Source) => s.id);
+
+      if (processedSourceIds.length > 0) {
+        try {
+          // Fetch all articles to find ones with matching source_ids
+          const articlesRes = await getArticles(1, 100);
+          const articleMap = new Map<string, Article>();
+          (articlesRes.items || []).forEach((article: Article) => {
+            if (article.source_id && processedSourceIds.includes(article.source_id)) {
+              articleMap.set(article.source_id, article);
+            }
+          });
+          setSourceArticleMap(articleMap);
+        } catch {
+          // Silently fail - article mapping is optional
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load sources');
     } finally {
@@ -306,6 +333,14 @@ export default function SourcesPage() {
                                     Skip
                                   </button>
                                 </>
+                              )}
+                              {source.status === 'processed' && sourceArticleMap.has(source.id) && (
+                                <Link
+                                  href={`/admin/articles/${sourceArticleMap.get(source.id)!.id}`}
+                                  style={styles.viewArticleButton}
+                                >
+                                  View Article
+                                </Link>
                               )}
                               {source.status === 'skipped' && (
                                 <button
@@ -570,6 +605,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: 'none',
     borderRadius: 4,
     cursor: 'pointer',
+  },
+  viewArticleButton: {
+    padding: '6px 12px',
+    fontSize: 13,
+    fontWeight: 500,
+    color: 'white',
+    backgroundColor: '#10B981',
+    border: 'none',
+    borderRadius: 4,
+    cursor: 'pointer',
+    textDecoration: 'none',
+    display: 'inline-block',
   },
   skipButton: {
     padding: '6px 12px',
