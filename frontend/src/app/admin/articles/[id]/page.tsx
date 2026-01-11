@@ -9,6 +9,7 @@ import {
   getSourceById,
   updateArticle,
   updateArticleStatus,
+  regenerateImage,
   Article,
   Source,
   formatDate,
@@ -25,6 +26,7 @@ export default function ArticleEditorPage() {
   const [source, setSource] = useState<Source | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -153,6 +155,29 @@ export default function ArticleEditorPage() {
       setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRegenerateImage = async () => {
+    if (!article) return;
+
+    const hasExistingImage = !!article.og_image_url;
+    const confirmMessage = hasExistingImage
+      ? 'This will replace the current image. Continue?'
+      : 'Generate a new hero image for this article?';
+
+    if (!confirm(confirmMessage)) return;
+
+    try {
+      setIsRegeneratingImage(true);
+      setError(null);
+      const result = await regenerateImage(id);
+      setArticle({ ...article, og_image_url: result.og_image_url });
+      alert('Image generated successfully!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate image');
+    } finally {
+      setIsRegeneratingImage(false);
     }
   };
 
@@ -303,6 +328,50 @@ export default function ArticleEditorPage() {
         </div>
       ) : (
         <div style={styles.editorContainer}>
+          {/* Hero Image */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Hero Image (OG Image)</label>
+            <div style={styles.imageSection}>
+              {article.og_image_url ? (
+                <div style={styles.imagePreview}>
+                  <img
+                    src={article.og_image_url}
+                    alt="Hero image"
+                    style={styles.heroImage}
+                  />
+                  <div style={styles.imageActions}>
+                    <a
+                      href={article.og_image_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.viewImageLink}
+                    >
+                      View Full Size
+                    </a>
+                    <button
+                      onClick={handleRegenerateImage}
+                      disabled={isRegeneratingImage}
+                      style={styles.regenerateButton}
+                    >
+                      {isRegeneratingImage ? 'Generating...' : 'Regenerate Image'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={styles.noImage}>
+                  <p style={styles.noImageText}>No hero image yet</p>
+                  <button
+                    onClick={handleRegenerateImage}
+                    disabled={isRegeneratingImage}
+                    style={styles.generateImageButton}
+                  >
+                    {isRegeneratingImage ? 'Generating...' : 'Generate Image'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Title */}
           <div style={styles.formGroup}>
             <label style={styles.label}>Title</label>
@@ -595,6 +664,65 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: 10,
     padding: 32,
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  },
+  imageSection: {
+    border: '1px solid #E5E7EB',
+    borderRadius: 8,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+  },
+  imagePreview: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  heroImage: {
+    width: '100%',
+    maxWidth: 600,
+    height: 'auto',
+    borderRadius: 8,
+    border: '1px solid #E5E7EB',
+  },
+  imageActions: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+  },
+  viewImageLink: {
+    fontSize: 14,
+    color: '#3B82F6',
+    textDecoration: 'none',
+  },
+  regenerateButton: {
+    padding: '8px 16px',
+    fontSize: 14,
+    fontWeight: 500,
+    color: '#374151',
+    backgroundColor: 'white',
+    border: '1px solid #E5E7EB',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
+  noImage: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
+    padding: 32,
+  },
+  noImageText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  generateImageButton: {
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 500,
+    color: 'white',
+    backgroundColor: '#8B5CF6',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
   },
   formGroup: {
     marginBottom: 24,

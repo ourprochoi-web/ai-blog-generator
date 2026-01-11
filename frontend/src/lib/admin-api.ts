@@ -197,6 +197,14 @@ export async function validateReferences(
   });
 }
 
+export async function regenerateImage(
+  articleId: string
+): Promise<{ og_image_url: string; image_size_bytes: number }> {
+  return apiCall(`/api/articles/${articleId}/regenerate-image`, {
+    method: 'POST',
+  });
+}
+
 // Pipeline triggers (uses scheduler API)
 interface SchedulerJobResult {
   success: boolean;
