@@ -128,6 +128,12 @@ Return your article in the following JSON format:
 }}
 ```
 
+**CRITICAL JSON FORMATTING RULES**:
+- The content field must be a valid JSON string
+- Escape all double quotes inside content with backslash: use \\" instead of "
+- Escape newlines as \\n
+- Example: "content": "He said \\"Hello\\" and left.\\n\\nNext paragraph..."
+
 Now write the article:"""
 
         return prompt
