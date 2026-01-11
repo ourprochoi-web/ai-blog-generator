@@ -182,15 +182,12 @@ class BlogWriter:
             except json.JSONDecodeError as e:
                 logger.warning(f"JSON decode error: {e}")
 
-        # Fallback: treat entire response as content
-        logger.warning(f"Falling back to raw content. Response starts with: {response_text[:100]}")
-        return {
-            "title": "Generated Article",
-            "subtitle": "",
-            "content": response_text,
-            "tags": [],
-            "meta_description": "",
-        }
+        # No valid JSON found - raise error instead of saving garbage
+        logger.error(f"Failed to parse article JSON. Response starts with: {response_text[:200]}")
+        raise ValueError(
+            f"Failed to parse LLM response as valid article JSON. "
+            f"Response length: {len(response_text)} chars"
+        )
 
     def _clean_content_field(self, content: str) -> str:
         """
