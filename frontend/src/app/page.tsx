@@ -242,6 +242,27 @@ export default async function HomePage() {
                 }}
               />
 
+              {/* Hero Image */}
+              {featuredArticle.og_image_url && (
+                <div
+                  style={{
+                    marginBottom: '32px',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <img
+                    src={featuredArticle.og_image_url}
+                    alt={featuredArticle.title}
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      display: 'block',
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Full Article Content */}
               <div className="article-content">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{featuredArticle.content}</ReactMarkdown>
