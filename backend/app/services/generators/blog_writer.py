@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional
 from backend.app.services.generators.prompts import PromptTemplates, SourceType
 from backend.app.services.generators.reference_validator import ReferenceValidator
 from backend.app.services.llm.gemini import GeminiClient
+from backend.app.services.llm.image_generator import ImageGenerator
+from backend.app.services.storage.supabase_storage import SupabaseStorage
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ class GeneratedArticle:
     llm_model: str
     generation_time_seconds: float
     references: List[Dict[str, Any]]
+    hero_image_url: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -42,6 +45,7 @@ class GeneratedArticle:
             "llm_model": self.llm_model,
             "generation_time_seconds": self.generation_time_seconds,
             "references": self.references,
+            "hero_image_url": self.hero_image_url,
         }
 
 
@@ -52,6 +56,8 @@ class BlogWriter:
         self,
         llm_client: Optional[GeminiClient] = None,
         validator: Optional[ReferenceValidator] = None,
+        image_generator: Optional[ImageGenerator] = None,
+        storage: Optional[SupabaseStorage] = None,
     ):
         """
         Initialize blog writer.
@@ -59,9 +65,13 @@ class BlogWriter:
         Args:
             llm_client: Optional LLM client (creates default Gemini client if not provided)
             validator: Optional reference validator
+            image_generator: Optional image generator for hero images
+            storage: Optional storage service for uploading images
         """
         self.llm = llm_client or GeminiClient()
         self.validator = validator or ReferenceValidator()
+        self.image_generator = image_generator
+        self.storage = storage
 
     async def generate_article(
         self,
@@ -72,6 +82,8 @@ class BlogWriter:
         author: Optional[str] = None,
         metadata: Optional[Dict] = None,
         validate_references: bool = True,
+        generate_image: bool = False,
+        article_slug: Optional[str] = None,
     ) -> GeneratedArticle:
         """
         Generate a blog article from source material.
@@ -130,6 +142,26 @@ class BlogWriter:
         word_count = len(re.findall(r"\w+", content_text))
         char_count = len(content_text)
 
+        # Generate hero image if requested
+        hero_image_url = None
+        if generate_image and self.image_generator and self.storage and article_slug:
+            try:
+                logger.info(f"Generating hero image for: {article_data.get('title', '')[:50]}")
+                image_data = await self.image_generator.generate_hero_image(
+                    article_title=article_data.get("title", title),
+                    article_summary=article_data.get("meta_description", summary or ""),
+                )
+                if image_data:
+                    hero_image_url = await self.storage.upload_image(
+                        image_data=image_data,
+                        article_slug=article_slug,
+                        image_type="hero",
+                    )
+                    if hero_image_url:
+                        logger.info(f"Hero image uploaded: {hero_image_url}")
+            except Exception as e:
+                logger.warning(f"Failed to generate hero image: {e}")
+
         return GeneratedArticle(
             title=article_data.get("title", title),
             subtitle=article_data.get("subtitle", ""),
@@ -141,6 +173,7 @@ class BlogWriter:
             llm_model=response.model,
             generation_time_seconds=response.generation_time_seconds,
             references=references,
+            hero_image_url=hero_image_url,
         )
 
     def _parse_article_response(self, response_text: str) -> Dict[str, Any]:

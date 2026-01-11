@@ -20,6 +20,8 @@ from backend.app.models.article import ArticleEdition
 from backend.app.models.source import SourceStatus
 from backend.app.services.generators.blog_writer import BlogWriter
 from backend.app.services.generators.source_evaluator import SourceEvaluator
+from backend.app.services.llm.image_generator import ImageGenerator
+from backend.app.services.storage.supabase_storage import SupabaseStorage
 from backend.app.services.scrapers.arxiv import ArxivScraper
 from backend.app.services.scrapers.news import NewsScraper
 
@@ -238,7 +240,22 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
     client = get_supabase_client()
     source_repo = SourceRepository(client)
     article_repo = ArticleRepository(client)
-    writer = BlogWriter()
+
+    # Initialize writer with optional image generation
+    image_generator = None
+    storage = None
+    if settings.GENERATE_HERO_IMAGES:
+        try:
+            image_generator = ImageGenerator()
+            storage = SupabaseStorage(bucket=settings.IMAGE_STORAGE_BUCKET)
+            logger.info("Image generation enabled")
+        except Exception as e:
+            logger.warning(f"Failed to initialize image generator: {e}")
+
+    writer = BlogWriter(
+        image_generator=image_generator,
+        storage=storage,
+    )
 
     # Determine edition
     current_edition = edition or get_current_edition()
@@ -273,6 +290,9 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
         try:
             logger.info(f"Generating article for: {source['title'][:50]}...")
 
+            # Pre-generate slug for image upload path
+            temp_slug = slugify(source["title"], max_length=200)
+
             # Generate article
             metadata = source.get("metadata", {})
             generated = await writer.generate_article(
@@ -283,9 +303,11 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
                 author=metadata.get("author") or metadata.get("authors"),
                 metadata=metadata,
                 validate_references=True,
+                generate_image=settings.GENERATE_HERO_IMAGES,
+                article_slug=temp_slug,
             )
 
-            # Generate slug
+            # Generate final slug from generated title
             slug = slugify(generated.title, max_length=200)
             if await article_repo.slug_exists(slug):
                 base_slug = slug
@@ -320,7 +342,7 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
                 content_with_source += f"- [{source_label}: {source_title}]({source_url})"
 
             # Save article with edition
-            await article_repo.create({
+            article_data = {
                 "source_id": source["id"],
                 "title": generated.title[:300] if generated.title else "Untitled",
                 "subtitle": subtitle,
@@ -335,7 +357,13 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
                 "meta_description": meta_desc,
                 "llm_model": generated.llm_model,
                 "generation_time_seconds": generated.generation_time_seconds,
-            })
+            }
+
+            # Add hero image URL if generated
+            if generated.hero_image_url:
+                article_data["og_image_url"] = generated.hero_image_url
+
+            await article_repo.create(article_data)
 
             # Update source status to processed
             await source_repo.update_status(source["id"], SourceStatus.PROCESSED)

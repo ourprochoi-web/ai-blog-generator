@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # CORS settings
     CORS_ORIGINS: str = ""  # Comma-separated list of allowed origins (empty = allow all)
 
+    # Image generation settings
+    GENERATE_HERO_IMAGES: bool = False  # 글 생성 시 히어로 이미지 자동 생성
+    IMAGE_STORAGE_BUCKET: str = "article-images"  # Supabase Storage 버킷 이름
+
     # Edition settings (KST = UTC+9)
     MORNING_EDITION_HOUR: int = 8   # 오전 8시 KST
     EVENING_EDITION_HOUR: int = 20  # 오후 8시 KST
