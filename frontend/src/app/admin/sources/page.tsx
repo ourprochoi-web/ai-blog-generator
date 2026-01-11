@@ -155,6 +155,8 @@ export default function SourcesPage() {
     switch (status) {
       case 'pending':
         return { bg: '#FEF3C7', color: '#92400E' };
+      case 'selected':
+        return { bg: '#DBEAFE', color: '#1E40AF' };
       case 'processed':
         return { bg: '#D1FAE5', color: '#065F46' };
       case 'skipped':
@@ -198,7 +200,7 @@ export default function SourcesPage() {
       <div style={styles.filtersRow}>
         <div style={styles.filterGroup}>
           <span style={styles.filterLabel}>Status:</span>
-          {['', 'pending', 'processed', 'skipped', 'failed'].map((status) => (
+          {['', 'pending', 'selected', 'processed', 'skipped', 'failed'].map((status) => (
             <button
               key={status}
               onClick={() => setFilters(status, typeFilter)}
@@ -324,7 +326,7 @@ export default function SourcesPage() {
                             <span style={styles.processing}>Processing...</span>
                           ) : (
                             <>
-                              {source.status === 'pending' && (
+                              {(source.status === 'pending' || source.status === 'selected') && (
                                 <>
                                   <button
                                     onClick={() => handleGenerate(source.id)}

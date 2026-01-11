@@ -12,7 +12,7 @@ export interface Source {
   summary: string | null;
   metadata: Record<string, unknown>;
   scraped_at: string;
-  status: 'pending' | 'processed' | 'skipped' | 'failed';
+  status: 'pending' | 'selected' | 'processed' | 'skipped' | 'failed';
   error_message: string | null;
   relevance_score: number | null;
   created_at: string;
