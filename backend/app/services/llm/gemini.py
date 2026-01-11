@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import time
 from typing import Optional
 
@@ -9,6 +11,11 @@ import google.generativeai as genai
 
 from backend.app.config import settings
 from backend.app.services.llm.base import BaseLLM, LLMResponse
+
+logger = logging.getLogger(__name__)
+
+# Default timeout for API calls (seconds)
+DEFAULT_TIMEOUT = 120  # 2 minutes for long article generation
 
 
 class GeminiClient(BaseLLM):
@@ -18,6 +25,7 @@ class GeminiClient(BaseLLM):
         self,
         model: str = "models/gemini-2.5-flash",
         api_key: Optional[str] = None,
+        timeout: int = DEFAULT_TIMEOUT,
     ):
         """
         Initialize Gemini client.
@@ -25,8 +33,10 @@ class GeminiClient(BaseLLM):
         Args:
             model: Model name to use (default: gemini-2.5-flash)
             api_key: Optional API key (uses settings if not provided)
+            timeout: Request timeout in seconds (default: 120)
         """
         self.model_name = model
+        self.timeout = timeout
         api_key = api_key or settings.GEMINI_API_KEY
 
         if not api_key:
@@ -42,7 +52,7 @@ class GeminiClient(BaseLLM):
         max_tokens: Optional[int] = None,
         temperature: float = 0.7,
     ) -> LLMResponse:
-        """Generate text from prompt."""
+        """Generate text from prompt using async API with timeout."""
         start_time = time.time()
 
         # Build generation config
@@ -57,11 +67,18 @@ class GeminiClient(BaseLLM):
         if system_prompt:
             full_prompt = f"{system_prompt}\n\n{prompt}"
 
-        # Generate response
-        response = self.model.generate_content(
-            full_prompt,
-            generation_config=config,
-        )
+        # Generate response using async API with timeout
+        try:
+            response = await asyncio.wait_for(
+                self.model.generate_content_async(
+                    full_prompt,
+                    generation_config=config,
+                ),
+                timeout=self.timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Gemini API timeout after {self.timeout}s")
+            raise TimeoutError(f"Gemini API request timed out after {self.timeout} seconds")
 
         generation_time = time.time() - start_time
 
