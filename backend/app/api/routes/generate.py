@@ -108,19 +108,44 @@ async def generate_article(
                 slug = f"{base_slug}-{counter}"
                 counter += 1
 
+        # Truncate fields to fit DB constraints
+        title = generated.title[:300] if generated.title else "Untitled"
+        subtitle = generated.subtitle
+        if subtitle and len(subtitle) > 200:
+            subtitle = subtitle[:197] + "..."
+        meta_desc = generated.meta_description
+        if meta_desc and len(meta_desc) > 160:
+            meta_desc = meta_desc[:157] + "..."
+
+        # Add source reference to content footer
+        source_url = source.get("url", "")
+        source_title = source.get("title", "Original Source")
+        source_type = source.get("type", "article")
+
+        content_with_source = generated.content
+        if source_url:
+            source_label = {
+                "paper": "Original Paper",
+                "news": "Original Article",
+                "article": "Original Source"
+            }.get(source_type, "Original Source")
+
+            content_with_source += f"\n\n---\n\n## References\n\n"
+            content_with_source += f"- [{source_label}: {source_title}]({source_url})"
+
         # Prepare article data
         article_data = {
             "source_id": str(request.source_id),
-            "title": generated.title,
-            "subtitle": generated.subtitle,
+            "title": title,
+            "subtitle": subtitle,
             "slug": slug,
-            "content": generated.content,
+            "content": content_with_source,
             "tags": generated.tags,
             "references": generated.references,
             "word_count": generated.word_count,
             "char_count": generated.char_count,
             "status": ArticleStatus.DRAFT.value,
-            "meta_description": generated.meta_description,
+            "meta_description": meta_desc,
             "llm_model": generated.llm_model,
             "generation_time_seconds": generated.generation_time_seconds,
         }

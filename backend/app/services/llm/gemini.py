@@ -8,6 +8,7 @@ import time
 from typing import Optional
 
 import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 
 from backend.app.config import settings
 from backend.app.services.llm.base import BaseLLM, LLMResponse
@@ -16,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 # Default timeout for API calls (seconds)
 DEFAULT_TIMEOUT = 120  # 2 minutes for long article generation
+
+# Retry settings
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 2  # seconds
 
 
 class GeminiClient(BaseLLM):
@@ -52,7 +57,7 @@ class GeminiClient(BaseLLM):
         max_tokens: Optional[int] = None,
         temperature: float = 0.7,
     ) -> LLMResponse:
-        """Generate text from prompt using async API with timeout."""
+        """Generate text from prompt using async API with timeout and retry."""
         start_time = time.time()
 
         # Build generation config
@@ -67,18 +72,41 @@ class GeminiClient(BaseLLM):
         if system_prompt:
             full_prompt = f"{system_prompt}\n\n{prompt}"
 
-        # Generate response using async API with timeout
-        try:
-            response = await asyncio.wait_for(
-                self.model.generate_content_async(
-                    full_prompt,
-                    generation_config=config,
-                ),
-                timeout=self.timeout,
-            )
-        except asyncio.TimeoutError:
-            logger.error(f"Gemini API timeout after {self.timeout}s")
-            raise TimeoutError(f"Gemini API request timed out after {self.timeout} seconds")
+        # Retry loop with exponential backoff
+        last_exception = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await asyncio.wait_for(
+                    self.model.generate_content_async(
+                        full_prompt,
+                        generation_config=config,
+                    ),
+                    timeout=self.timeout,
+                )
+                break  # Success, exit retry loop
+            except asyncio.TimeoutError:
+                logger.error(f"Gemini API timeout after {self.timeout}s (attempt {attempt + 1}/{MAX_RETRIES})")
+                last_exception = TimeoutError(f"Gemini API request timed out after {self.timeout} seconds")
+            except google_exceptions.ResourceExhausted as e:
+                # Rate limit error (429)
+                delay = INITIAL_RETRY_DELAY * (2 ** attempt)
+                logger.warning(f"Rate limited, retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
+                last_exception = e
+                await asyncio.sleep(delay)
+            except google_exceptions.ServiceUnavailable as e:
+                # Service temporarily unavailable (503)
+                delay = INITIAL_RETRY_DELAY * (2 ** attempt)
+                logger.warning(f"Service unavailable, retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
+                last_exception = e
+                await asyncio.sleep(delay)
+            except Exception as e:
+                # Other errors - don't retry
+                logger.error(f"Gemini API error: {e}")
+                raise
+        else:
+            # All retries exhausted
+            logger.error(f"All {MAX_RETRIES} retries failed")
+            raise last_exception
 
         generation_time = time.time() - start_time
 

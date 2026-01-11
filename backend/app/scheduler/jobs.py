@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 # Global scheduler instance
 scheduler: Optional[AsyncIOScheduler] = None
 
+# Lock to prevent concurrent pipeline execution
+_pipeline_lock = asyncio.Lock()
+
 
 def get_scheduler() -> AsyncIOScheduler:
     """Get or create the scheduler instance."""
@@ -298,13 +301,29 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
             if subtitle and len(subtitle) > 200:
                 subtitle = subtitle[:197] + "..."
 
+            # Add source reference to content footer
+            source_url = source.get("url", "")
+            source_title = source.get("title", "Original Source")
+            source_type = source.get("type", "article")
+
+            content_with_source = generated.content
+            if source_url:
+                source_label = {
+                    "paper": "Original Paper",
+                    "news": "Original Article",
+                    "article": "Original Source"
+                }.get(source_type, "Original Source")
+
+                content_with_source += f"\n\n---\n\n## References\n\n"
+                content_with_source += f"- [{source_label}: {source_title}]({source_url})"
+
             # Save article with edition
             await article_repo.create({
                 "source_id": source["id"],
                 "title": generated.title[:300] if generated.title else "Untitled",
                 "subtitle": subtitle,
                 "slug": slug,
-                "content": generated.content,
+                "content": content_with_source,
                 "tags": generated.tags,
                 "references": generated.references,
                 "word_count": generated.word_count,
@@ -342,33 +361,41 @@ async def run_full_pipeline() -> dict:
     """
     Run the full pipeline: scrape -> evaluate -> generate.
 
+    Uses a lock to prevent concurrent execution.
+
     Returns:
         Combined results from all steps
     """
-    logger.info("Starting full pipeline job")
+    # Check if pipeline is already running
+    if _pipeline_lock.locked():
+        logger.warning("Pipeline already running, skipping this execution")
+        return {"skipped": True, "reason": "Pipeline already running"}
 
-    results = {
-        "scrape": {},
-        "evaluate": {},
-        "generate": {},
-    }
+    async with _pipeline_lock:
+        logger.info("Starting full pipeline job")
 
-    try:
-        # Step 1: Scrape new sources
-        results["scrape"] = await scrape_all_sources()
+        results = {
+            "scrape": {},
+            "evaluate": {},
+            "generate": {},
+        }
 
-        # Step 2: Evaluate pending sources
-        results["evaluate"] = await evaluate_pending_sources()
+        try:
+            # Step 1: Scrape new sources
+            results["scrape"] = await scrape_all_sources()
 
-        # Step 3: Generate articles from selected sources
-        results["generate"] = await generate_articles_from_selected()
+            # Step 2: Evaluate pending sources
+            results["evaluate"] = await evaluate_pending_sources()
 
-    except Exception as e:
-        logger.error(f"Pipeline error: {str(e)}")
-        results["error"] = str(e)
+            # Step 3: Generate articles from selected sources
+            results["generate"] = await generate_articles_from_selected()
 
-    logger.info("Full pipeline completed")
-    return results
+        except Exception as e:
+            logger.error(f"Pipeline error: {str(e)}")
+            results["error"] = str(e)
+
+        logger.info("Full pipeline completed")
+        return results
 
 
 def setup_scheduler() -> AsyncIOScheduler:
