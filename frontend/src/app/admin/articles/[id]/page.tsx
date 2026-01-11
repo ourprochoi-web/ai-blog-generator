@@ -123,6 +123,7 @@ export default function ArticleEditorPage() {
         content,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
         meta_description: metaDescription || null,
+        og_image_url: article.og_image_url,
       });
 
       setArticle(updatedArticle);
