@@ -58,7 +58,7 @@ export async function getPublishedArticles(
   pageSize: number = 20
 ): Promise<ArticlesResponse> {
   const res = await fetch(
-    `${API_URL}/api/articles/published?page=${page}&page_size=${pageSize}`,
+    `${API_URL}/api/articles?page=${page}&page_size=${pageSize}&status=published`,
     { next: { revalidate: 60 } }
   );
 
@@ -66,7 +66,14 @@ export async function getPublishedArticles(
     throw new Error('Failed to fetch published articles');
   }
 
-  return res.json();
+  const data = await res.json();
+  // Transform response format (items -> articles)
+  return {
+    articles: data.items || [],
+    total: data.total || 0,
+    page: data.page || 1,
+    page_size: data.page_size || pageSize,
+  };
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article> {
