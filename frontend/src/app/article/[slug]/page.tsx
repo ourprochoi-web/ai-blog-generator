@@ -3,6 +3,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { getArticleBySlug, formatDate, calculateReadTime, Article } from '@/lib/api';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Sample article for development
 const sampleArticle: Article = {
@@ -172,6 +173,27 @@ export default async function ArticlePage({ params }: PageProps) {
             )}
           </header>
 
+          {/* Hero Image */}
+          {article.og_image_url && (
+            <div
+              style={{
+                marginBottom: '40px',
+                borderRadius: '12px',
+                overflow: 'hidden',
+              }}
+            >
+              <img
+                src={article.og_image_url}
+                alt={article.title}
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  display: 'block',
+                }}
+              />
+            </div>
+          )}
+
           {/* Divider */}
           <div
             style={{
@@ -183,7 +205,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Article Body */}
           <article className="article-content">
-            <ReactMarkdown>{article.content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{article.content}</ReactMarkdown>
           </article>
 
           {/* Tags */}
