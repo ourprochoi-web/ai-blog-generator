@@ -143,8 +143,9 @@ class ArxivScraper(BaseScraper):
     ) -> List[ScrapedContent]:
         """Search arXiv for papers matching query."""
         # Build search URL
+        # Note: Don't wrap category queries (cat:cs.AI) with all: prefix
         params = {
-            "search_query": f"all:{query}",
+            "search_query": query,
             "start": 0,
             "max_results": max_results,
             "sortBy": sort_by,
