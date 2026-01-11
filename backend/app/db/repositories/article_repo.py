@@ -111,6 +111,7 @@ class ArticleRepository(BaseRepository):
         self,
         status: Optional[ArticleStatus] = None,
         tag: Optional[str] = None,
+        edition: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> Tuple[List[Dict[str, Any]], int]:
@@ -121,6 +122,8 @@ class ArticleRepository(BaseRepository):
             query = query.eq("status", status.value)
         if tag:
             query = query.contains("tags", [tag])
+        if edition:
+            query = query.eq("edition", edition)
 
         count_response = query.execute()
         total = count_response.count or 0
@@ -132,6 +135,8 @@ class ArticleRepository(BaseRepository):
             data_query = data_query.eq("status", status.value)
         if tag:
             data_query = data_query.contains("tags", [tag])
+        if edition:
+            data_query = data_query.eq("edition", edition)
 
         offset = (page - 1) * page_size
         response = (

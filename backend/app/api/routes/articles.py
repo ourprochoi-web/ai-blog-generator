@@ -141,7 +141,7 @@ async def list_articles(
     repo: ArticleRepository = Depends(get_article_repo),
 ):
     """List all articles with pagination and filtering."""
-    # Use edition-specific query if edition is specified
+    # Use edition-specific query if edition is specified for published articles
     if edition and status == ArticleStatus.PUBLISHED:
         items, total = await repo.get_published_by_edition(
             edition=edition,
@@ -149,16 +149,14 @@ async def list_articles(
             page_size=page_size,
         )
     else:
+        # Use DB query for edition filter (not memory filter)
         items, total = await repo.get_filtered(
             status=status,
             tag=tag,
+            edition=edition.value if edition else None,
             page=page,
             page_size=page_size,
         )
-        # Filter by edition in memory if specified (for non-published)
-        if edition:
-            items = [i for i in items if i.get("edition") == edition.value]
-            total = len(items)
 
     total_pages = math.ceil(total / page_size) if total > 0 else 1
 

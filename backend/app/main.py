@@ -18,9 +18,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def validate_required_settings():
+    """Validate required environment variables on startup."""
+    required = {
+        "SUPABASE_URL": settings.SUPABASE_URL,
+        "SUPABASE_KEY": settings.SUPABASE_KEY,
+        "GEMINI_API_KEY": settings.GEMINI_API_KEY,
+    }
+    missing = [key for key, value in required.items() if not value]
+    if missing:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
+    # Validate required settings
+    validate_required_settings()
+    logger.info("Environment validation passed")
+
     # Startup
     logger.info(f"Starting AI Blog Platform in {settings.APP_ENV} mode")
 
