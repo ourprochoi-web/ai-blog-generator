@@ -122,20 +122,33 @@ export default function Header() {
           </button>
         </div>
 
-        {/* Subscribe */}
-        <button
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#1a1a1a',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-          }}
-        >
-          Subscribe
-        </button>
+        {/* Right side: Archive + Subscribe */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Link
+            href="/archive"
+            style={{
+              fontSize: '14px',
+              color: '#6B7280',
+              textDecoration: 'none',
+              fontWeight: '500',
+            }}
+          >
+            Archive
+          </Link>
+          <button
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#1a1a1a',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+            }}
+          >
+            Subscribe
+          </button>
+        </div>
       </div>
     </header>
   );

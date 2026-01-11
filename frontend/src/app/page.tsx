@@ -1,9 +1,18 @@
+import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AIInsightBox from '@/components/AIInsightBox';
 import ArticleCard from '@/components/ArticleCard';
 import NewsletterCTA from '@/components/NewsletterCTA';
-import { getPublishedArticles, Article, formatDate, calculateReadTime } from '@/lib/api';
+import DateNavigation from '@/components/DateNavigation';
+import {
+  getPublishedArticles,
+  getSourceStats,
+  getArchiveDates,
+  Article,
+  formatDate,
+  calculateReadTime,
+} from '@/lib/api';
 import ReactMarkdown from 'react-markdown';
 
 // Sample data for development (when API is not available)
@@ -75,12 +84,21 @@ const sampleArticles: Article[] = [
 
 export default async function HomePage() {
   let articles: Article[] = sampleArticles;
+  let sourceStats = { total: 0, by_type: { news: 0, paper: 0, article: 0 }, today_count: 0 };
+  let archiveDates: string[] = [];
 
   try {
-    const response = await getPublishedArticles(1, 20);
-    if (response.articles && response.articles.length > 0) {
-      articles = response.articles;
+    const [articlesResponse, statsResponse, archiveResponse] = await Promise.all([
+      getPublishedArticles(1, 20),
+      getSourceStats().catch(() => sourceStats),
+      getArchiveDates().catch(() => ({ dates: [] })),
+    ]);
+
+    if (articlesResponse.articles && articlesResponse.articles.length > 0) {
+      articles = articlesResponse.articles;
     }
+    sourceStats = statsResponse;
+    archiveDates = archiveResponse.dates || [];
   } catch (error) {
     // Use sample data if API fails
     console.log('Using sample data');
@@ -88,6 +106,11 @@ export default async function HomePage() {
 
   const featuredArticle = articles[0];
   const otherArticles = articles.slice(1);
+
+  // Get today's date for navigation
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const hasYesterday = archiveDates.includes(yesterday);
 
   // Category style helper
   const getCategoryStyle = (category: string) => {
@@ -122,8 +145,23 @@ export default async function HomePage() {
             padding: '48px 24px',
           }}
         >
+          {/* Date Navigation */}
+          {hasYesterday && (
+            <DateNavigation
+              currentDate={today}
+              previousDate={yesterday}
+              archiveDates={archiveDates}
+            />
+          )}
+
           {/* AI Insight Box */}
-          <AIInsightBox />
+          <AIInsightBox
+            totalSources={sourceStats.total}
+            newsSources={sourceStats.by_type.news}
+            paperSources={sourceStats.by_type.paper}
+            articleSources={sourceStats.by_type.article}
+            storiesSelected={articles.length}
+          />
 
           {/* Featured Article - Full Content */}
           {featuredArticle && (

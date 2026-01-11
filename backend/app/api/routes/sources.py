@@ -73,6 +73,55 @@ async def scrape_url(url: str, source_type: SourceType):
     return await scraper.scrape(url)
 
 
+class SourceStats(BaseModel):
+    """Statistics about sources."""
+
+    total: int
+    by_type: dict
+    today_count: int
+
+
+@router.get("/stats", response_model=SourceStats)
+async def get_source_stats(
+    repo: SourceRepository = Depends(get_source_repo),
+):
+    """Get statistics about sources."""
+    client = get_supabase_client()
+
+    # Get total count
+    total_response = client.table("sources").select("id", count="exact").execute()
+    total = total_response.count or 0
+
+    # Get count by type
+    news_response = client.table("sources").select("id", count="exact").eq("type", "news").execute()
+    paper_response = client.table("sources").select("id", count="exact").eq("type", "paper").execute()
+    article_response = client.table("sources").select("id", count="exact").eq("type", "article").execute()
+
+    by_type = {
+        "news": news_response.count or 0,
+        "paper": paper_response.count or 0,
+        "article": article_response.count or 0,
+    }
+
+    # Get today's count
+    from datetime import datetime, timezone
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_response = (
+        client.table("sources")
+        .select("id", count="exact")
+        .gte("created_at", today_start.isoformat())
+        .execute()
+    )
+    today_count = today_response.count or 0
+
+    return SourceStats(
+        total=total,
+        by_type=by_type,
+        today_count=today_count,
+    )
+
+
 @router.get("", response_model=SourceListResponse)
 async def list_sources(
     page: int = Query(1, ge=1, description="Page number"),

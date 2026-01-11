@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from slugify import slugify
 
 from backend.app.db.database import get_supabase_client
@@ -48,6 +49,86 @@ def generate_slug(title: str) -> str:
 def count_words(text: str) -> int:
     """Count words in text."""
     return len(re.findall(r"\w+", text))
+
+
+class ArticleDateGroup(BaseModel):
+    """Articles grouped by date."""
+
+    date: str
+    count: int
+
+
+class ArchiveResponse(BaseModel):
+    """Archive listing response."""
+
+    dates: list
+
+
+@router.get("/archive", response_model=ArchiveResponse)
+async def get_archive_dates(
+    repo: ArticleRepository = Depends(get_article_repo),
+):
+    """Get list of dates that have published articles."""
+    client = get_supabase_client()
+
+    response = (
+        client.table("articles")
+        .select("published_at")
+        .eq("status", "published")
+        .not_.is_("published_at", "null")
+        .order("published_at", desc=True)
+        .execute()
+    )
+
+    # Group by date
+    dates_set = set()
+    for article in response.data:
+        if article.get("published_at"):
+            date_str = article["published_at"][:10]  # YYYY-MM-DD
+            dates_set.add(date_str)
+
+    dates_list = sorted(list(dates_set), reverse=True)
+
+    return ArchiveResponse(dates=dates_list)
+
+
+@router.get("/by-date/{date}", response_model=ArticleListResponse)
+async def get_articles_by_date(
+    date: str,
+    repo: ArticleRepository = Depends(get_article_repo),
+):
+    """Get published articles for a specific date (YYYY-MM-DD format)."""
+    client = get_supabase_client()
+
+    # Parse date and create range
+    try:
+        from datetime import datetime
+
+        parsed_date = datetime.strptime(date, "%Y-%m-%d")
+        next_date = parsed_date.replace(hour=23, minute=59, second=59)
+        start_date = parsed_date.replace(hour=0, minute=0, second=0)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+
+    response = (
+        client.table("articles")
+        .select("*")
+        .eq("status", "published")
+        .gte("published_at", start_date.isoformat())
+        .lte("published_at", next_date.isoformat())
+        .order("published_at", desc=True)
+        .execute()
+    )
+
+    items = response.data or []
+
+    return ArticleListResponse(
+        items=[ArticleResponse(**item) for item in items],
+        total=len(items),
+        page=1,
+        page_size=len(items),
+        total_pages=1,
+    )
 
 
 @router.get("", response_model=ArticleListResponse)

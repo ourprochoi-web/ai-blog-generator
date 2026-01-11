@@ -123,3 +123,71 @@ export function getEdition(dateString: string): 'morning' | 'evening' {
   const hours = date.getHours();
   return hours < 12 ? 'morning' : 'evening';
 }
+
+// Source statistics
+export interface SourceStats {
+  total: number;
+  by_type: {
+    news: number;
+    paper: number;
+    article: number;
+  };
+  today_count: number;
+}
+
+export async function getSourceStats(): Promise<SourceStats> {
+  const res = await fetch(`${API_URL}/api/sources/stats`, {
+    next: { revalidate: 300 }, // Cache for 5 minutes
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch source stats');
+  }
+
+  return res.json();
+}
+
+// Archive dates
+export interface ArchiveResponse {
+  dates: string[];
+}
+
+export async function getArchiveDates(): Promise<ArchiveResponse> {
+  const res = await fetch(`${API_URL}/api/articles/archive`, {
+    next: { revalidate: 60 },
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch archive dates');
+  }
+
+  return res.json();
+}
+
+// Articles by date
+export async function getArticlesByDate(date: string): Promise<ArticlesResponse> {
+  const res = await fetch(`${API_URL}/api/articles/by-date/${date}`, {
+    next: { revalidate: 60 },
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch articles for date');
+  }
+
+  const data = await res.json();
+  return {
+    articles: data.items || [],
+    total: data.total || 0,
+    page: data.page || 1,
+    page_size: data.page_size || 20,
+  };
+}
+
+// Format date for display (short)
+export function formatDateShort(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+}
