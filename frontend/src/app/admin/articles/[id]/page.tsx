@@ -189,8 +189,9 @@ export default function ArticleEditorPage() {
     try {
       setIsSaving(true);
       setError(null);
-      const updatedArticle = await updateArticle(id, { og_image_url: null });
-      setArticle(updatedArticle);
+      await updateArticle(id, { og_image_url: null });
+      // Explicitly set og_image_url to null to ensure UI updates
+      setArticle({ ...article, og_image_url: null });
       alert('Image deleted successfully!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete image');
