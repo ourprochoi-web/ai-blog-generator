@@ -179,6 +179,29 @@ class BlogWriter:
             "meta_description": "",
         }
 
+    def _clean_content_field(self, content: str) -> str:
+        """
+        Clean content field - remove any JSON wrapper or code blocks.
+
+        Sometimes LLM outputs the content wrapped in markdown code blocks.
+        """
+        if not content:
+            return content
+
+        content = content.strip()
+
+        # Remove leading ```json or ``` and trailing ```
+        if content.startswith("```"):
+            # Find end of first line
+            first_newline = content.find("\n")
+            if first_newline != -1:
+                content = content[first_newline + 1:]
+            # Remove trailing ```
+            if content.rstrip().endswith("```"):
+                content = content.rstrip()[:-3].rstrip()
+
+        return content
+
     def _find_json_in_code_blocks(self, text: str) -> List[Dict[str, Any]]:
         """
         Find JSON objects in ```json code blocks using brace-matching.
@@ -231,7 +254,7 @@ class BlogWriter:
         content_stripped = content.strip()
 
         # Case 1: Content starts with ```json - use brace matching
-        if content_stripped.startswith("```json"):
+        if content_stripped.startswith("```json") or content_stripped.startswith("```"):
             json_start = content_stripped.find("{")
             if json_start != -1:
                 inner_json = self._extract_json_object(content_stripped[json_start:])
@@ -239,7 +262,8 @@ class BlogWriter:
                     try:
                         inner_parsed = json.loads(inner_json)
                         if isinstance(inner_parsed, dict) and "title" in inner_parsed and "content" in inner_parsed:
-                            return inner_parsed
+                            # Recursively unwrap in case of double nesting
+                            return self._unwrap_nested_json(inner_parsed)
                     except json.JSONDecodeError:
                         pass
 
@@ -248,7 +272,7 @@ class BlogWriter:
             try:
                 inner_parsed = json.loads(content_stripped)
                 if isinstance(inner_parsed, dict) and "title" in inner_parsed:
-                    return inner_parsed
+                    return self._unwrap_nested_json(inner_parsed)
             except json.JSONDecodeError:
                 pass
 
