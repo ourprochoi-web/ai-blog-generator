@@ -148,19 +148,15 @@ class BlogWriter:
         Returns:
             Parsed article data dictionary
         """
-        # Try to find all JSON blocks in code fences
-        json_matches = re.findall(r"```json\s*(.*?)\s*```", response_text, re.DOTALL)
+        # Find all ```json markers and extract JSON using brace-matching
+        json_objects = self._find_json_in_code_blocks(response_text)
 
         # Try each JSON block (prefer later ones as they're usually the final answer)
-        for json_str in reversed(json_matches):
-            try:
-                parsed = json.loads(json_str)
-                # Handle nested JSON - if content itself contains ```json, parse it
-                parsed = self._unwrap_nested_json(parsed)
-                if self._is_valid_article(parsed):
-                    return parsed
-            except json.JSONDecodeError:
-                continue
+        for parsed in reversed(json_objects):
+            # Handle nested JSON - if content itself contains ```json, parse it
+            parsed = self._unwrap_nested_json(parsed)
+            if self._is_valid_article(parsed):
+                return parsed
 
         # If no valid JSON in code blocks, try to extract JSON object directly
         # Find balanced braces for JSON object
@@ -183,11 +179,47 @@ class BlogWriter:
             "meta_description": "",
         }
 
+    def _find_json_in_code_blocks(self, text: str) -> List[Dict[str, Any]]:
+        """
+        Find JSON objects in ```json code blocks using brace-matching.
+
+        This is more robust than regex for handling nested backticks.
+        """
+        results = []
+        search_start = 0
+
+        while True:
+            # Find next ```json marker
+            code_block_start = text.find("```json", search_start)
+            if code_block_start == -1:
+                break
+
+            # Find the start of the JSON object after ```json
+            json_start = text.find("{", code_block_start)
+            if json_start == -1:
+                break
+
+            # Extract JSON using brace-matching
+            json_str = self._extract_json_object(text[json_start:])
+            if json_str:
+                try:
+                    parsed = json.loads(json_str)
+                    if isinstance(parsed, dict):
+                        results.append(parsed)
+                except json.JSONDecodeError:
+                    pass
+
+            # Move search position forward
+            search_start = json_start + len(json_str) if json_str else code_block_start + 7
+
+        return results
+
     def _unwrap_nested_json(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Unwrap nested JSON if content contains another JSON block.
 
         Sometimes LLM outputs JSON with content that itself is a JSON string.
+        Uses brace-matching to handle nested backticks correctly.
         """
         if not isinstance(data, dict):
             return data
@@ -196,21 +228,22 @@ class BlogWriter:
         if not isinstance(content, str):
             return data
 
-        # Check if content starts with ```json or { and looks like JSON
         content_stripped = content.strip()
 
-        # If content itself is a JSON code block
+        # Case 1: Content starts with ```json - use brace matching
         if content_stripped.startswith("```json"):
-            inner_match = re.search(r"```json\s*(.*?)\s*```", content_stripped, re.DOTALL)
-            if inner_match:
-                try:
-                    inner_parsed = json.loads(inner_match.group(1))
-                    if isinstance(inner_parsed, dict) and "title" in inner_parsed:
-                        return inner_parsed
-                except json.JSONDecodeError:
-                    pass
+            json_start = content_stripped.find("{")
+            if json_start != -1:
+                inner_json = self._extract_json_object(content_stripped[json_start:])
+                if inner_json:
+                    try:
+                        inner_parsed = json.loads(inner_json)
+                        if isinstance(inner_parsed, dict) and "title" in inner_parsed and "content" in inner_parsed:
+                            return inner_parsed
+                    except json.JSONDecodeError:
+                        pass
 
-        # If content looks like it's just a JSON object
+        # Case 2: Content is a raw JSON object
         elif content_stripped.startswith("{") and "\"title\"" in content_stripped:
             try:
                 inner_parsed = json.loads(content_stripped)
