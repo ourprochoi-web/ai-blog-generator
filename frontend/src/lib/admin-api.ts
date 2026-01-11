@@ -14,6 +14,7 @@ export interface Source {
   scraped_at: string;
   status: 'pending' | 'processed' | 'skipped' | 'failed';
   error_message: string | null;
+  relevance_score: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -255,6 +255,7 @@ export default function SourcesPage() {
                 <th style={styles.th}>Title</th>
                 <th style={{ ...styles.th, width: 80 }}>Type</th>
                 <th style={{ ...styles.th, width: 100 }}>Status</th>
+                <th style={{ ...styles.th, width: 60 }}>Score</th>
                 <th style={{ ...styles.th, width: 120 }}>Scraped</th>
                 <th style={{ ...styles.th, width: 240 }}>Actions</th>
               </tr>
@@ -262,7 +263,7 @@ export default function SourcesPage() {
             <tbody>
               {sources.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={styles.emptyCell}>
+                  <td colSpan={6} style={styles.emptyCell}>
                     No sources found
                   </td>
                 </tr>
@@ -306,6 +307,13 @@ export default function SourcesPage() {
                         >
                           {source.status}
                         </span>
+                      </td>
+                      <td style={styles.td}>
+                        {source.relevance_score != null ? (
+                          <span style={styles.scoreBadge}>{source.relevance_score}</span>
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td style={styles.td}>
                         {formatRelativeTime(source.scraped_at)}
@@ -586,6 +594,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 12,
     fontWeight: 500,
     textTransform: 'capitalize',
+  },
+  scoreBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    borderRadius: 4,
+    fontSize: 12,
+    fontWeight: 600,
+    backgroundColor: '#DBEAFE',
+    color: '#1E40AF',
   },
   actions: {
     display: 'flex',
