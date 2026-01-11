@@ -44,6 +44,28 @@ class SourceStatusUpdate(BaseModel):
     error_message: Optional[str] = None
 
 
+class SourceSelectionUpdate(BaseModel):
+    """Schema for updating source selection."""
+
+    is_selected: bool
+    priority: Optional[int] = Field(None, ge=0, le=5)
+    selection_note: Optional[str] = None
+
+
+class SourcePriorityUpdate(BaseModel):
+    """Schema for updating source priority."""
+
+    priority: int = Field(..., ge=0, le=5)
+
+
+class SourceBulkSelectionRequest(BaseModel):
+    """Schema for bulk selection of sources."""
+
+    source_ids: List[UUID]
+    is_selected: bool
+    priority: Optional[int] = Field(None, ge=0, le=5)
+
+
 class SourceScrapeRequest(BaseModel):
     """Schema for scrape request."""
 
@@ -61,6 +83,13 @@ class SourceResponse(SourceBase):
     scraped_at: Optional[datetime] = None
     status: SourceStatus
     error_message: Optional[str] = None
+    # Selection fields
+    priority: int = 0
+    relevance_score: Optional[int] = None
+    is_selected: bool = False
+    selection_note: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    # Timestamps
     created_at: datetime
     updated_at: datetime
 

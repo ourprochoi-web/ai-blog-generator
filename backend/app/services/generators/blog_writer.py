@@ -148,55 +148,85 @@ class BlogWriter:
         Returns:
             Parsed article data dictionary
         """
-        # Try to find all JSON blocks in the response (use last one)
+        # Try to find all JSON blocks in code fences
         json_matches = re.findall(r"```json\s*(.*?)\s*```", response_text, re.DOTALL)
 
-        if json_matches:
-            # Use the last JSON block (usually the final answer)
-            json_str = json_matches[-1]
-        else:
-            # Try to find JSON without code blocks - find last valid JSON object
-            # Look for objects that start with {"title" which is our expected format
-            json_match = re.search(r'\{"title":[^}]+.*?"meta_description":[^}]+\}', response_text, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
-            else:
-                # Fallback: find any JSON object
-                json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0)
-                else:
-                    # Fallback: treat entire response as content
-                    return {
-                        "title": "Generated Article",
-                        "subtitle": "",
-                        "content": response_text,
-                        "tags": [],
-                        "meta_description": "",
-                    }
+        # Try each JSON block (prefer later ones as they're usually the final answer)
+        for json_str in reversed(json_matches):
+            try:
+                parsed = json.loads(json_str)
+                if self._is_valid_article(parsed):
+                    return parsed
+            except json.JSONDecodeError:
+                continue
 
-        try:
-            parsed = json.loads(json_str)
-            # Validate expected fields
-            if "content" in parsed and "title" in parsed:
-                return parsed
-            else:
-                return {
-                    "title": "Generated Article",
-                    "subtitle": "",
-                    "content": response_text,
-                    "tags": [],
-                    "meta_description": "",
-                }
-        except json.JSONDecodeError:
-            # If JSON parsing fails, return raw content
-            return {
-                "title": "Generated Article",
-                "subtitle": "",
-                "content": response_text,
-                "tags": [],
-                "meta_description": "",
-            }
+        # If no valid JSON in code blocks, try to extract JSON object directly
+        # Find balanced braces for JSON object
+        json_str = self._extract_json_object(response_text)
+        if json_str:
+            try:
+                parsed = json.loads(json_str)
+                if self._is_valid_article(parsed):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+
+        # Fallback: treat entire response as content
+        return {
+            "title": "Generated Article",
+            "subtitle": "",
+            "content": response_text,
+            "tags": [],
+            "meta_description": "",
+        }
+
+    def _is_valid_article(self, data: Dict[str, Any]) -> bool:
+        """Check if parsed data has required article fields."""
+        return (
+            isinstance(data, dict)
+            and "title" in data
+            and "content" in data
+            and isinstance(data.get("content"), str)
+            and len(data.get("content", "")) > 100  # Meaningful content
+        )
+
+    def _extract_json_object(self, text: str) -> Optional[str]:
+        """Extract JSON object with balanced braces from text."""
+        # Find the start of JSON object with "title" key
+        start_patterns = [
+            r'\{\s*"title"\s*:',
+            r'\{\s*\\?"title\\?"\s*:',
+        ]
+
+        for pattern in start_patterns:
+            match = re.search(pattern, text)
+            if match:
+                start = match.start()
+                # Find balanced closing brace
+                brace_count = 0
+                in_string = False
+                escape_next = False
+
+                for i, char in enumerate(text[start:]):
+                    if escape_next:
+                        escape_next = False
+                        continue
+                    if char == '\\':
+                        escape_next = True
+                        continue
+                    if char == '"' and not escape_next:
+                        in_string = not in_string
+                        continue
+                    if in_string:
+                        continue
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            return text[start:start + i + 1]
+
+        return None
 
     def _extract_references(self, content: str) -> List[Dict[str, Any]]:
         """

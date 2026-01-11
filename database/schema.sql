@@ -14,8 +14,16 @@ CREATE TABLE IF NOT EXISTS sources (
     summary TEXT,
     metadata JSONB DEFAULT '{}',
     scraped_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processed', 'skipped', 'failed')),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'selected', 'processed', 'skipped', 'failed')),
     error_message TEXT,
+
+    -- Source selection fields
+    priority INTEGER DEFAULT 0 CHECK (priority >= 0 AND priority <= 5),  -- 0=unset, 1-5 manual priority
+    relevance_score INTEGER DEFAULT NULL CHECK (relevance_score >= 0 AND relevance_score <= 100),  -- LLM auto-score
+    is_selected BOOLEAN DEFAULT FALSE,  -- Marked for blog generation
+    selection_note TEXT,  -- Why this source was selected/rejected
+    reviewed_at TIMESTAMP WITH TIME ZONE,  -- When selection was made
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -25,6 +33,9 @@ CREATE INDEX IF NOT EXISTS idx_sources_status ON sources(status);
 CREATE INDEX IF NOT EXISTS idx_sources_type ON sources(type);
 CREATE INDEX IF NOT EXISTS idx_sources_scraped_at ON sources(scraped_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sources_url ON sources(url);
+CREATE INDEX IF NOT EXISTS idx_sources_priority ON sources(priority DESC);
+CREATE INDEX IF NOT EXISTS idx_sources_is_selected ON sources(is_selected) WHERE is_selected = TRUE;
+CREATE INDEX IF NOT EXISTS idx_sources_relevance ON sources(relevance_score DESC NULLS LAST);
 
 -- =====================================================
 -- Articles Table

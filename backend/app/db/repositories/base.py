@@ -20,8 +20,8 @@ class BaseRepository:
 
     async def get_by_id(self, id: str) -> Optional[Dict[str, Any]]:
         """Get a record by ID."""
-        response = self._query().select("*").eq("id", id).single().execute()
-        return response.data if response.data else None
+        response = self._query().select("*").eq("id", id).limit(1).execute()
+        return response.data[0] if response.data else None
 
     async def get_all(
         self,

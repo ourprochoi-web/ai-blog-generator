@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,12 +13,16 @@ from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.source_repo import SourceRepository
 from backend.app.models.source import SourceStatus, SourceType
 from backend.app.schemas.source import (
+    SourceBulkSelectionRequest,
     SourceCreate,
     SourceListResponse,
+    SourcePriorityUpdate,
     SourceResponse,
+    SourceSelectionUpdate,
     SourceStatusUpdate,
     SourceUpdate,
 )
+from backend.app.services.generators.source_evaluator import SourceEvaluator
 from backend.app.services.scrapers import ArxivScraper, ArticleScraper, NewsScraper
 
 router = APIRouter(prefix="/sources")
@@ -287,4 +291,302 @@ async def rescrape_source(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to re-scrape URL: {str(e)}",
+        )
+
+
+# =====================================================
+# Source Selection Endpoints
+# =====================================================
+
+
+@router.get("/selection/pending", response_model=SourceListResponse)
+async def list_unreviewed_sources(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    repo: SourceRepository = Depends(get_source_repo),
+):
+    """List sources pending review for selection."""
+    items, total = await repo.get_unreviewed_sources(
+        page=page,
+        page_size=page_size,
+    )
+
+    total_pages = math.ceil(total / page_size) if total > 0 else 1
+
+    return SourceListResponse(
+        items=[SourceResponse(**item) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get("/selection/selected", response_model=SourceListResponse)
+async def list_selected_sources(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    repo: SourceRepository = Depends(get_source_repo),
+):
+    """List sources marked for blog generation."""
+    items, total = await repo.get_selected_sources(
+        page=page,
+        page_size=page_size,
+    )
+
+    total_pages = math.ceil(total / page_size) if total > 0 else 1
+
+    return SourceListResponse(
+        items=[SourceResponse(**item) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get("/selection/ready", response_model=SourceListResponse)
+async def list_sources_ready_for_generation(
+    limit: int = Query(10, ge=1, le=50, description="Number of sources to return"),
+    repo: SourceRepository = Depends(get_source_repo),
+):
+    """Get sources ready for blog generation, ordered by priority."""
+    items = await repo.get_sources_for_generation(limit=limit)
+
+    return SourceListResponse(
+        items=[SourceResponse(**item) for item in items],
+        total=len(items),
+        page=1,
+        page_size=limit,
+        total_pages=1,
+    )
+
+
+@router.patch("/{source_id}/select", response_model=SourceResponse)
+async def update_source_selection(
+    source_id: UUID,
+    selection_data: SourceSelectionUpdate,
+    repo: SourceRepository = Depends(get_source_repo),
+):
+    """Update a source's selection status."""
+    existing = await repo.get_by_id(str(source_id))
+    if not existing:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    updated = await repo.update_selection(
+        str(source_id),
+        is_selected=selection_data.is_selected,
+        priority=selection_data.priority,
+        selection_note=selection_data.selection_note,
+    )
+
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update source selection")
+
+    return SourceResponse(**updated)
+
+
+@router.patch("/{source_id}/priority", response_model=SourceResponse)
+async def update_source_priority(
+    source_id: UUID,
+    priority_data: SourcePriorityUpdate,
+    repo: SourceRepository = Depends(get_source_repo),
+):
+    """Update a source's priority (0-5)."""
+    existing = await repo.get_by_id(str(source_id))
+    if not existing:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    updated = await repo.update_priority(str(source_id), priority_data.priority)
+
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update source priority")
+
+    return SourceResponse(**updated)
+
+
+class BulkSelectionResponse(BaseModel):
+    """Response from bulk selection."""
+
+    updated_count: int
+    message: str
+
+
+@router.post("/selection/bulk", response_model=BulkSelectionResponse)
+async def bulk_select_sources(
+    request: SourceBulkSelectionRequest,
+    repo: SourceRepository = Depends(get_source_repo),
+):
+    """Bulk update selection for multiple sources."""
+    source_ids = [str(sid) for sid in request.source_ids]
+
+    updated_count = await repo.bulk_update_selection(
+        ids=source_ids,
+        is_selected=request.is_selected,
+        priority=request.priority,
+    )
+
+    action = "selected" if request.is_selected else "deselected"
+    return BulkSelectionResponse(
+        updated_count=updated_count,
+        message=f"Successfully {action} {updated_count} sources",
+    )
+
+
+# =====================================================
+# Source Evaluation Endpoints
+# =====================================================
+
+
+class EvaluationResponse(BaseModel):
+    """Response from source evaluation."""
+
+    source_id: UUID
+    relevance_score: int
+    suggested_topic: str
+    key_points: List[str]
+    reason: str
+    is_recommended: bool
+
+
+class BulkEvaluationRequest(BaseModel):
+    """Request for bulk evaluation."""
+
+    source_ids: List[UUID]
+
+
+class BulkEvaluationResponse(BaseModel):
+    """Response from bulk evaluation."""
+
+    evaluations: List[dict]
+    evaluated_count: int
+
+
+def get_evaluator():
+    """Get source evaluator dependency."""
+    return SourceEvaluator()
+
+
+@router.post("/{source_id}/evaluate", response_model=EvaluationResponse)
+async def evaluate_source(
+    source_id: UUID,
+    save_to_db: bool = Query(True, description="Save relevance score to database"),
+    repo: SourceRepository = Depends(get_source_repo),
+    evaluator: SourceEvaluator = Depends(get_evaluator),
+):
+    """Evaluate a source using LLM and optionally update its relevance score."""
+    source = await repo.get_by_id(str(source_id))
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    try:
+        evaluation = await evaluator.evaluate_source(
+            source_type=source["type"],
+            title=source["title"],
+            url=source["url"],
+            content=source.get("content", ""),
+            summary=source.get("summary"),
+        )
+
+        # Update the source with relevance score if requested
+        if save_to_db:
+            try:
+                await repo.update_relevance_score(str(source_id), evaluation.relevance_score)
+
+                # If recommended, also update selection note with suggested topic
+                if evaluation.is_recommended:
+                    await repo.update(
+                        str(source_id),
+                        {"selection_note": f"Suggested: {evaluation.suggested_topic}"},
+                    )
+            except Exception:
+                # Ignore DB errors (column may not exist yet)
+                pass
+
+        return EvaluationResponse(
+            source_id=source_id,
+            relevance_score=evaluation.relevance_score,
+            suggested_topic=evaluation.suggested_topic,
+            key_points=evaluation.key_points,
+            reason=evaluation.reason,
+            is_recommended=evaluation.is_recommended,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to evaluate source: {str(e)}",
+        )
+
+
+@router.post("/evaluate/batch", response_model=BulkEvaluationResponse)
+async def evaluate_sources_batch(
+    request: BulkEvaluationRequest,
+    repo: SourceRepository = Depends(get_source_repo),
+    evaluator: SourceEvaluator = Depends(get_evaluator),
+):
+    """Evaluate multiple sources in batch."""
+    sources = []
+    for sid in request.source_ids:
+        source = await repo.get_by_id(str(sid))
+        if source:
+            sources.append(source)
+
+    if not sources:
+        raise HTTPException(status_code=404, detail="No valid sources found")
+
+    try:
+        evaluations = await evaluator.evaluate_sources_batch(sources)
+
+        # Update relevance scores in database
+        for eval_result in evaluations:
+            source_id = eval_result.get("source_id")
+            score = eval_result.get("relevance_score", 50)
+            if source_id:
+                await repo.update_relevance_score(source_id, score)
+
+        return BulkEvaluationResponse(
+            evaluations=evaluations,
+            evaluated_count=len(evaluations),
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to evaluate sources: {str(e)}",
+        )
+
+
+@router.post("/evaluate/pending", response_model=BulkEvaluationResponse)
+async def evaluate_pending_sources(
+    limit: int = Query(10, ge=1, le=50, description="Number of sources to evaluate"),
+    repo: SourceRepository = Depends(get_source_repo),
+    evaluator: SourceEvaluator = Depends(get_evaluator),
+):
+    """Evaluate all pending unreviewed sources."""
+    # Get unreviewed sources
+    sources, total = await repo.get_unreviewed_sources(page=1, page_size=limit)
+
+    if not sources:
+        return BulkEvaluationResponse(evaluations=[], evaluated_count=0)
+
+    try:
+        evaluations = await evaluator.evaluate_sources_batch(sources)
+
+        # Update relevance scores in database
+        for eval_result in evaluations:
+            source_id = eval_result.get("source_id")
+            score = eval_result.get("relevance_score", 50)
+            if source_id:
+                await repo.update_relevance_score(source_id, score)
+
+        return BulkEvaluationResponse(
+            evaluations=evaluations,
+            evaluated_count=len(evaluations),
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to evaluate sources: {str(e)}",
         )
