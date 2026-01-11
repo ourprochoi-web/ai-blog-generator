@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import math
 import re
-from typing import Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -231,3 +232,100 @@ async def get_article_versions(
 
     versions = await version_repo.get_versions_by_article(str(article_id))
     return {"article_id": str(article_id), "versions": versions}
+
+
+def extract_json_from_content(content: str) -> Optional[Dict[str, Any]]:
+    """Extract JSON data from content that contains nested JSON."""
+    if not content:
+        return None
+
+    content_stripped = content.strip()
+
+    # If content starts with ```json
+    if content_stripped.startswith("```json"):
+        match = re.search(r"```json\s*(.*?)\s*```", content_stripped, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except json.JSONDecodeError:
+                pass
+
+    # If content is just a JSON object
+    elif content_stripped.startswith("{") and '"title"' in content_stripped:
+        try:
+            return json.loads(content_stripped)
+        except json.JSONDecodeError:
+            pass
+
+    return None
+
+
+@router.post("/fix-nested-json")
+async def fix_nested_json_articles(
+    repo: ArticleRepository = Depends(get_article_repo),
+):
+    """Fix all articles that have nested JSON in their content."""
+    client = get_supabase_client()
+    response = client.table("articles").select("*").execute()
+    articles = response.data
+
+    fixed_count = 0
+    fixed_articles = []
+
+    for article in articles:
+        content = article.get("content", "")
+        article_id = article.get("id")
+        current_title = article.get("title")
+
+        # Check if content contains nested JSON
+        parsed = extract_json_from_content(content)
+
+        if parsed and "title" in parsed and "content" in parsed:
+            # Extract the actual values
+            new_title = parsed.get("title", current_title)
+            new_subtitle = parsed.get("subtitle", "")
+            new_content = parsed.get("content", content)
+            new_tags = parsed.get("tags", [])
+            new_meta = parsed.get("meta_description", "")
+
+            # Calculate new word/char counts
+            word_count = len(re.findall(r"\w+", new_content))
+            char_count = len(new_content)
+
+            # Generate new slug from new title
+            new_slug = generate_slug(new_title)
+
+            # Check if slug exists and make unique if needed
+            if await repo.slug_exists(new_slug):
+                base_slug = new_slug
+                counter = 1
+                while await repo.slug_exists(new_slug):
+                    new_slug = f"{base_slug}-{counter}"
+                    counter += 1
+
+            # Update the article
+            update_data = {
+                "title": new_title,
+                "subtitle": new_subtitle,
+                "slug": new_slug,
+                "content": new_content,
+                "tags": new_tags,
+                "meta_description": new_meta,
+                "word_count": word_count,
+                "char_count": char_count,
+            }
+
+            await repo.update(article_id, update_data)
+            fixed_articles.append({
+                "id": article_id,
+                "old_title": current_title,
+                "new_title": new_title,
+                "new_slug": new_slug,
+            })
+            fixed_count += 1
+
+    return {
+        "fixed_count": fixed_count,
+        "total_articles": len(articles),
+        "fixed_articles": fixed_articles,
+    }

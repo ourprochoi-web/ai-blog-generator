@@ -155,6 +155,8 @@ class BlogWriter:
         for json_str in reversed(json_matches):
             try:
                 parsed = json.loads(json_str)
+                # Handle nested JSON - if content itself contains ```json, parse it
+                parsed = self._unwrap_nested_json(parsed)
                 if self._is_valid_article(parsed):
                     return parsed
             except json.JSONDecodeError:
@@ -166,6 +168,7 @@ class BlogWriter:
         if json_str:
             try:
                 parsed = json.loads(json_str)
+                parsed = self._unwrap_nested_json(parsed)
                 if self._is_valid_article(parsed):
                     return parsed
             except json.JSONDecodeError:
@@ -179,6 +182,44 @@ class BlogWriter:
             "tags": [],
             "meta_description": "",
         }
+
+    def _unwrap_nested_json(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Unwrap nested JSON if content contains another JSON block.
+
+        Sometimes LLM outputs JSON with content that itself is a JSON string.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        content = data.get("content", "")
+        if not isinstance(content, str):
+            return data
+
+        # Check if content starts with ```json or { and looks like JSON
+        content_stripped = content.strip()
+
+        # If content itself is a JSON code block
+        if content_stripped.startswith("```json"):
+            inner_match = re.search(r"```json\s*(.*?)\s*```", content_stripped, re.DOTALL)
+            if inner_match:
+                try:
+                    inner_parsed = json.loads(inner_match.group(1))
+                    if isinstance(inner_parsed, dict) and "title" in inner_parsed:
+                        return inner_parsed
+                except json.JSONDecodeError:
+                    pass
+
+        # If content looks like it's just a JSON object
+        elif content_stripped.startswith("{") and "\"title\"" in content_stripped:
+            try:
+                inner_parsed = json.loads(content_stripped)
+                if isinstance(inner_parsed, dict) and "title" in inner_parsed:
+                    return inner_parsed
+            except json.JSONDecodeError:
+                pass
+
+        return data
 
     def _is_valid_article(self, data: Dict[str, Any]) -> bool:
         """Check if parsed data has required article fields."""
