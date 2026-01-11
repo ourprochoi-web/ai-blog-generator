@@ -78,7 +78,15 @@ class ImageGenerator:
                 for part in response.candidates[0].content.parts:
                     if hasattr(part, "inline_data") and part.inline_data:
                         if part.inline_data.mime_type.startswith("image/"):
-                            return base64.b64decode(part.inline_data.data)
+                            data = part.inline_data.data
+                            # Handle both bytes and base64-encoded string
+                            if isinstance(data, bytes):
+                                return data
+                            elif isinstance(data, str):
+                                return base64.b64decode(data)
+                            else:
+                                logger.warning(f"Unexpected data type: {type(data)}")
+                                return None
 
             logger.warning("No image found in response")
             return None
@@ -133,7 +141,14 @@ Suitable for a professional AI/tech blog."""
                 for part in response.candidates[0].content.parts:
                     if hasattr(part, "inline_data") and part.inline_data:
                         if part.inline_data.mime_type.startswith("image/"):
-                            return base64.b64decode(part.inline_data.data)
+                            data = part.inline_data.data
+                            # Handle both bytes and base64-encoded string
+                            if isinstance(data, bytes):
+                                return data
+                            elif isinstance(data, str):
+                                return base64.b64decode(data)
+                            else:
+                                return None
 
             return None
 
