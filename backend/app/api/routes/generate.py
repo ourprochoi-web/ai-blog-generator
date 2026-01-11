@@ -12,6 +12,7 @@ from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.article_repo import ArticleRepository
 from backend.app.db.repositories.source_repo import SourceRepository
 from backend.app.schemas.article import ArticlePreviewResponse
+from backend.app.services.generators.reference_validator import ReferenceValidator
 
 router = APIRouter(prefix="/generate")
 
@@ -35,6 +36,7 @@ class RefValidationResult(BaseModel):
     url: str
     is_valid: bool
     status_code: Optional[int] = None
+    final_url: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -125,19 +127,17 @@ async def validate_references(request: ValidateRefsRequest):
     Validate reference URLs.
 
     Checks if URLs are accessible and returns validation results.
-    This endpoint will be fully implemented in Phase 2.
     """
-    # TODO: Implement actual URL validation in Phase 2
-    # For now, return placeholder results
-    results = []
-    for url in request.urls:
-        results.append(
-            RefValidationResult(
-                url=url,
-                is_valid=True,  # Placeholder
-                status_code=200,
-                error=None,
-            )
-        )
+    validator = ReferenceValidator()
+    results = await validator.validate_urls(request.urls)
 
-    return results
+    return [
+        RefValidationResult(
+            url=r.url,
+            is_valid=r.is_valid,
+            status_code=r.status_code,
+            final_url=r.final_url,
+            error=r.error,
+        )
+        for r in results
+    ]

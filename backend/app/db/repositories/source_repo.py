@@ -18,8 +18,8 @@ class SourceRepository(BaseRepository):
 
     async def get_by_url(self, url: str) -> Optional[Dict[str, Any]]:
         """Get a source by URL."""
-        response = self._query().select("*").eq("url", url).single().execute()
-        return response.data if response.data else None
+        response = self._query().select("*").eq("url", url).limit(1).execute()
+        return response.data[0] if response.data else None
 
     async def get_by_status(
         self,
