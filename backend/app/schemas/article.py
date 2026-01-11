@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from backend.app.models.article import ArticleStatus
+from backend.app.models.article import ArticleEdition, ArticleStatus
 
 
 class ReferenceSchema(BaseModel):
@@ -38,6 +38,7 @@ class ArticleCreate(ArticleBase):
     og_image_url: Optional[str] = Field(None, max_length=500)
     llm_model: Optional[str] = None
     generation_time_seconds: Optional[float] = None
+    edition: Optional[ArticleEdition] = None  # morning or evening
 
 
 class ArticleUpdate(BaseModel):
@@ -69,6 +70,7 @@ class ArticleResponse(ArticleBase):
     word_count: Optional[int] = None
     char_count: Optional[int] = None
     status: ArticleStatus
+    edition: Optional[ArticleEdition] = None
     meta_description: Optional[str] = None
     og_image_url: Optional[str] = None
     created_at: datetime

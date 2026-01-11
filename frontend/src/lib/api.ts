@@ -1,5 +1,7 @@
 const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
+export type Edition = 'morning' | 'evening';
+
 export interface Article {
   id: string;
   source_id: string | null;
@@ -12,6 +14,7 @@ export interface Article {
   word_count: number;
   char_count: number;
   status: string;
+  edition: Edition | null;
   meta_description: string | null;
   og_image_url: string | null;
   created_at: string;
@@ -55,12 +58,22 @@ export async function getArticles(
 
 export async function getPublishedArticles(
   page: number = 1,
-  pageSize: number = 20
+  pageSize: number = 20,
+  edition?: Edition
 ): Promise<ArticlesResponse> {
-  const res = await fetch(
-    `${API_URL}/api/articles?page=${page}&page_size=${pageSize}&status=published`,
-    { next: { revalidate: 60 } }
-  );
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+    status: 'published',
+  });
+
+  if (edition) {
+    params.append('edition', edition);
+  }
+
+  const res = await fetch(`${API_URL}/api/articles?${params}`, {
+    next: { revalidate: 60 },
+  });
 
   if (!res.ok) {
     throw new Error('Failed to fetch published articles');

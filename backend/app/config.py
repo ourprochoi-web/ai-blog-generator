@@ -27,8 +27,12 @@ class Settings(BaseSettings):
 
     # Scheduler settings
     SCRAPE_INTERVAL_HOURS: int = 12  # 스크래핑 주기
-    MAX_ARTICLES_PER_DAY: int = 3  # 하루 최대 글 생성 수
+    MAX_ARTICLES_PER_EDITION: int = 3  # 에디션당 최대 글 생성 수 (morning/evening)
     AUTO_GENERATE_MIN_SCORE: float = 7.0  # 자동 생성 최소 relevance_score
+
+    # Edition settings (KST = UTC+9)
+    MORNING_EDITION_HOUR: int = 8   # 오전 8시 KST
+    EVENING_EDITION_HOUR: int = 20  # 오후 8시 KST
 
     class Config:
         env_file = ".env"

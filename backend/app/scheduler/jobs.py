@@ -14,6 +14,7 @@ from backend.app.config import SCRAPE_SOURCES, settings
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.article_repo import ArticleRepository
 from backend.app.db.repositories.source_repo import SourceRepository
+from backend.app.models.article import ArticleEdition
 from backend.app.models.source import SourceStatus
 from backend.app.services.generators.blog_writer import BlogWriter
 from backend.app.services.generators.source_evaluator import SourceEvaluator
@@ -201,9 +202,28 @@ async def evaluate_pending_sources() -> dict:
     return results
 
 
-async def generate_articles_from_selected() -> dict:
+def get_current_edition() -> ArticleEdition:
     """
-    Generate articles from selected sources (up to daily limit).
+    Determine current edition based on KST time.
+
+    Morning: before 2 PM KST (before 5:00 UTC)
+    Evening: 2 PM KST and after (5:00 UTC and after)
+    """
+    utc_now = datetime.utcnow()
+    kst_hour = (utc_now.hour + 9) % 24  # Convert to KST
+
+    if kst_hour < 14:  # Before 2 PM KST
+        return ArticleEdition.MORNING
+    else:
+        return ArticleEdition.EVENING
+
+
+async def generate_articles_from_selected(edition: Optional[ArticleEdition] = None) -> dict:
+    """
+    Generate articles from selected sources (up to edition limit).
+
+    Args:
+        edition: Optional edition override. If not provided, auto-detect.
 
     Returns:
         Dictionary with generation results
@@ -214,19 +234,24 @@ async def generate_articles_from_selected() -> dict:
     article_repo = ArticleRepository(client)
     writer = BlogWriter()
 
+    # Determine edition
+    current_edition = edition or get_current_edition()
+    logger.info(f"Generating for {current_edition.value} edition")
+
     results = {
         "generated": 0,
         "skipped_existing": 0,
+        "edition": current_edition.value,
         "errors": [],
     }
 
-    # Check how many articles generated today
+    # Check how many articles generated for this edition today
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    articles_today = await article_repo.count_since(today_start)
-    remaining_quota = settings.MAX_ARTICLES_PER_DAY - articles_today
+    articles_this_edition = await article_repo.count_by_edition_since(today_start, current_edition)
+    remaining_quota = settings.MAX_ARTICLES_PER_EDITION - articles_this_edition
 
     if remaining_quota <= 0:
-        logger.info(f"Daily article limit reached ({settings.MAX_ARTICLES_PER_DAY})")
+        logger.info(f"Edition limit reached ({settings.MAX_ARTICLES_PER_EDITION} for {current_edition.value})")
         return results
 
     # Get selected sources ready for generation
@@ -264,7 +289,7 @@ async def generate_articles_from_selected() -> dict:
                     slug = f"{base_slug}-{counter}"
                     counter += 1
 
-            # Save article
+            # Save article with edition
             await article_repo.create({
                 "source_id": source["id"],
                 "title": generated.title,
@@ -276,6 +301,7 @@ async def generate_articles_from_selected() -> dict:
                 "word_count": generated.word_count,
                 "char_count": generated.char_count,
                 "status": "draft",
+                "edition": current_edition.value,
                 "meta_description": generated.meta_description,
                 "llm_model": generated.llm_model,
                 "generation_time_seconds": generated.generation_time_seconds,

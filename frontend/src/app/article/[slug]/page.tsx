@@ -41,6 +41,7 @@ For now, the message is clear: the tools available to solve hard problems just g
   word_count: 1600,
   char_count: 8000,
   status: 'published',
+  edition: 'morning',
   meta_description: null,
   og_image_url: null,
   created_at: new Date().toISOString(),

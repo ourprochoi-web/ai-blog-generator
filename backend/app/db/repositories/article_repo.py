@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from supabase import Client
 
 from backend.app.db.repositories.base import BaseRepository
-from backend.app.models.article import ArticleStatus
+from backend.app.models.article import ArticleEdition, ArticleStatus
 
 
 class ArticleRepository(BaseRepository):
@@ -175,6 +175,50 @@ class ArticleRepository(BaseRepository):
             .execute()
         )
         return response.count or 0
+
+    async def count_by_edition_since(
+        self, since: datetime, edition: ArticleEdition
+    ) -> int:
+        """Count articles for a specific edition since a given datetime."""
+        response = (
+            self._query()
+            .select("*", count="exact")
+            .eq("edition", edition.value)
+            .gte("created_at", since.isoformat())
+            .execute()
+        )
+        return response.count or 0
+
+    async def get_published_by_edition(
+        self,
+        edition: ArticleEdition,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """Get published articles for a specific edition."""
+        # Get total count
+        count_response = (
+            self._query()
+            .select("*", count="exact")
+            .eq("status", ArticleStatus.PUBLISHED.value)
+            .eq("edition", edition.value)
+            .execute()
+        )
+        total = count_response.count or 0
+
+        # Get paginated data
+        offset = (page - 1) * page_size
+        response = (
+            self._query()
+            .select("*")
+            .eq("status", ArticleStatus.PUBLISHED.value)
+            .eq("edition", edition.value)
+            .order("published_at", desc=True)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+
+        return response.data or [], total
 
 
 class ArticleVersionRepository(BaseRepository):

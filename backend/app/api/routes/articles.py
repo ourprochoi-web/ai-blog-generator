@@ -17,7 +17,7 @@ from backend.app.db.repositories.article_repo import (
     ArticleRepository,
     ArticleVersionRepository,
 )
-from backend.app.models.article import ArticleStatus
+from backend.app.models.article import ArticleEdition, ArticleStatus
 from backend.app.schemas.article import (
     ArticleCreate,
     ArticleListResponse,
@@ -136,16 +136,29 @@ async def list_articles(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     status: Optional[ArticleStatus] = Query(None, description="Filter by status"),
+    edition: Optional[ArticleEdition] = Query(None, description="Filter by edition (morning/evening)"),
     tag: Optional[str] = Query(None, description="Filter by tag"),
     repo: ArticleRepository = Depends(get_article_repo),
 ):
     """List all articles with pagination and filtering."""
-    items, total = await repo.get_filtered(
-        status=status,
-        tag=tag,
-        page=page,
-        page_size=page_size,
-    )
+    # Use edition-specific query if edition is specified
+    if edition and status == ArticleStatus.PUBLISHED:
+        items, total = await repo.get_published_by_edition(
+            edition=edition,
+            page=page,
+            page_size=page_size,
+        )
+    else:
+        items, total = await repo.get_filtered(
+            status=status,
+            tag=tag,
+            page=page,
+            page_size=page_size,
+        )
+        # Filter by edition in memory if specified (for non-published)
+        if edition:
+            items = [i for i in items if i.get("edition") == edition.value]
+            total = len(items)
 
     total_pages = math.ceil(total / page_size) if total > 0 else 1
 

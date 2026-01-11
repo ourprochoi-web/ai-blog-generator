@@ -17,6 +17,13 @@ class ArticleStatus(str, Enum):
     ARCHIVED = "archived"
 
 
+class ArticleEdition(str, Enum):
+    """Article edition enumeration."""
+
+    MORNING = "morning"
+    EVENING = "evening"
+
+
 class Reference:
     """Reference link model."""
 

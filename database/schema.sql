@@ -60,6 +60,9 @@ CREATE TABLE IF NOT EXISTS articles (
     -- Status
     status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'review', 'published', 'archived')),
 
+    -- Edition (morning/evening)
+    edition VARCHAR(10) CHECK (edition IN ('morning', 'evening')),
+
     -- SEO
     meta_description VARCHAR(160),
     og_image_url VARCHAR(500),
@@ -80,6 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug);
 CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_articles_tags ON articles USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_articles_source_id ON articles(source_id);
+CREATE INDEX IF NOT EXISTS idx_articles_edition ON articles(edition);
 
 -- =====================================================
 -- Article Versions Table
