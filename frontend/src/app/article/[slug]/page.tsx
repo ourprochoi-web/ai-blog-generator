@@ -4,6 +4,59 @@ import Footer from '@/components/Footer';
 import { getArticleBySlug, formatDate, calculateReadTime, Article } from '@/lib/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Metadata } from 'next';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://aidailybrief.com';
+
+// Generate metadata for SEO
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  try {
+    const article = await getArticleBySlug(params.slug);
+
+    const description = article.meta_description || article.subtitle || article.content.substring(0, 160).replace(/[#*\n]/g, '').trim() + '...';
+    const ogImage = article.og_image_url || `${SITE_URL}/og-image.png`;
+    const articleUrl = `${SITE_URL}/article/${article.slug}`;
+
+    return {
+      title: article.title,
+      description,
+      keywords: article.tags.map(tag => tag.replace('#', '')),
+      authors: [{ name: 'AI Daily Brief' }],
+      openGraph: {
+        type: 'article',
+        url: articleUrl,
+        title: article.title,
+        description,
+        siteName: 'AI Daily Brief',
+        publishedTime: article.published_at || article.created_at,
+        modifiedTime: article.updated_at,
+        tags: article.tags.map(tag => tag.replace('#', '')),
+        images: [
+          {
+            url: ogImage,
+            width: 1200,
+            height: 630,
+            alt: article.title,
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: article.title,
+        description,
+        images: [ogImage],
+      },
+      alternates: {
+        canonical: articleUrl,
+      },
+    };
+  } catch {
+    return {
+      title: 'Article Not Found',
+      description: 'The requested article could not be found.',
+    };
+  }
+}
 
 // Sample article for development
 const sampleArticle: Article = {
@@ -83,8 +136,45 @@ export default async function ArticlePage({ params }: PageProps) {
 
   const categoryStyle = getCategoryStyle(category);
 
+  // JSON-LD structured data for SEO
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: article.title,
+    description: article.meta_description || article.subtitle || article.content.substring(0, 160).replace(/[#*\n]/g, '').trim(),
+    image: article.og_image_url || `${SITE_URL}/og-image.png`,
+    datePublished: article.published_at || article.created_at,
+    dateModified: article.updated_at,
+    author: {
+      '@type': 'Organization',
+      name: 'AI Daily Brief',
+      url: SITE_URL,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'AI Daily Brief',
+      url: SITE_URL,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${SITE_URL}/logo.png`,
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${SITE_URL}/article/${article.slug}`,
+    },
+    keywords: article.tags.map(tag => tag.replace('#', '')).join(', '),
+    wordCount: article.word_count,
+    articleSection: category,
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* JSON-LD for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Header />
 
       <main style={{ flex: 1, backgroundColor: '#FAFAF9' }}>

@@ -1,0 +1,10 @@
+# AI Daily Brief - robots.txt
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://aidailybrief.com/sitemap.xml
+
+# Disallow admin pages
+Disallow: /admin/
+Disallow: /api/

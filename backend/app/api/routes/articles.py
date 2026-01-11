@@ -18,6 +18,7 @@ from backend.app.db.repositories.article_repo import (
     ArticleRepository,
     ArticleVersionRepository,
 )
+from backend.app.db.repositories.source_repo import SourceRepository
 from backend.app.models.article import ArticleEdition, ArticleStatus
 from backend.app.services.llm.image_generator import ImageGenerator
 from backend.app.services.storage.supabase_storage import SupabaseStorage
@@ -42,6 +43,12 @@ def get_version_repo():
     """Get article version repository dependency."""
     client = get_supabase_client()
     return ArticleVersionRepository(client)
+
+
+def get_source_repo():
+    """Get source repository dependency."""
+    client = get_supabase_client()
+    return SourceRepository(client)
 
 
 def generate_slug(title: str) -> str:
@@ -140,6 +147,7 @@ async def list_articles(
     edition: Optional[ArticleEdition] = Query(None, description="Filter by edition (morning/evening)"),
     tag: Optional[str] = Query(None, description="Filter by tag"),
     repo: ArticleRepository = Depends(get_article_repo),
+    source_repo: SourceRepository = Depends(get_source_repo),
 ):
     """List all articles with pagination and filtering."""
     # Use edition-specific query if edition is specified for published articles
@@ -159,10 +167,31 @@ async def list_articles(
             page_size=page_size,
         )
 
+    # Fetch source relevance scores for articles with source_id
+    source_ids = [item.get("source_id") for item in items if item.get("source_id")]
+    source_scores = {}
+    if source_ids:
+        for source_id in source_ids:
+            try:
+                source = await source_repo.get_by_id(source_id)
+                if source:
+                    source_scores[source_id] = source.get("relevance_score")
+            except Exception:
+                pass
+
+    # Add source_relevance_score to each article
+    enriched_items = []
+    for item in items:
+        item_dict = dict(item)
+        source_id = item_dict.get("source_id")
+        if source_id and source_id in source_scores:
+            item_dict["source_relevance_score"] = source_scores[source_id]
+        enriched_items.append(item_dict)
+
     total_pages = math.ceil(total / page_size) if total > 0 else 1
 
     return ArticleListResponse(
-        items=[ArticleResponse(**item) for item in items],
+        items=[ArticleResponse(**item) for item in enriched_items],
         total=total,
         page=page,
         page_size=page_size,

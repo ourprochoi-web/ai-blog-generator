@@ -78,6 +78,8 @@ class ArticleResponse(ArticleBase):
     published_at: Optional[datetime] = None
     llm_model: Optional[str] = None
     generation_time_seconds: Optional[float] = None
+    # Source evaluation score (from linked source)
+    source_relevance_score: Optional[int] = None
 
     class Config:
         from_attributes = True

@@ -38,6 +38,7 @@ export interface Article {
   published_at: string | null;
   llm_model: string | null;
   generation_time_seconds: number | null;
+  source_relevance_score: number | null;
 }
 
 export interface PaginatedResponse<T> {

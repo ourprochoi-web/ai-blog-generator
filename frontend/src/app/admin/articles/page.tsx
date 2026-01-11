@@ -305,6 +305,7 @@ export default function ArticlesPage() {
                   Title {getSortIcon('title')}
                 </th>
                 <th style={{ ...styles.th, width: 100 }}>Status</th>
+                <th style={{ ...styles.th, width: 60 }}>Score</th>
                 <th
                   style={{ ...styles.th, width: 80, cursor: 'pointer' }}
                   onClick={() => handleSort('word_count')}
@@ -323,7 +324,7 @@ export default function ArticlesPage() {
             <tbody>
               {filteredArticles.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={styles.emptyCell}>
+                  <td colSpan={7} style={styles.emptyCell}>
                     {searchQuery ? 'No articles match your search' : 'No articles found'}
                   </td>
                 </tr>
@@ -367,6 +368,13 @@ export default function ArticlesPage() {
                         >
                           {article.status}
                         </span>
+                      </td>
+                      <td style={styles.td}>
+                        {article.source_relevance_score != null ? (
+                          <span style={styles.scoreBadge}>{article.source_relevance_score}</span>
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td style={styles.td}>{article.word_count || '-'}</td>
                       <td style={styles.td}>{formatRelativeTime(article.created_at)}</td>
@@ -662,6 +670,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 12,
     fontWeight: 500,
     textTransform: 'capitalize',
+  },
+  scoreBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    borderRadius: 4,
+    fontSize: 12,
+    fontWeight: 600,
+    backgroundColor: '#DBEAFE',
+    color: '#1E40AF',
   },
   actions: {
     display: 'flex',
