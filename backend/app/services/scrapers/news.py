@@ -8,9 +8,12 @@ from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Optional
 
 import feedparser
+import logging
 from bs4 import BeautifulSoup
 
 from backend.app.services.scrapers.base import BaseScraper, ScrapedContent
+
+logger = logging.getLogger(__name__)
 
 
 class NewsScraper(BaseScraper):
@@ -92,7 +95,7 @@ class NewsScraper(BaseScraper):
                 content = await self.scrape(url)
                 results.append(content)
             except Exception as e:
-                print(f"Error scraping {url}: {e}")
+                logger.error(f"Error scraping {url}: {e}")
         return results
 
     async def scrape_feed(
@@ -111,7 +114,7 @@ class NewsScraper(BaseScraper):
                 content = self._parse_feed_entry(entry, feed_url)
                 results.append(content)
             except Exception as e:
-                print(f"Error parsing feed entry: {e}")
+                logger.error(f"Error parsing feed entry: {e}")
 
         return results
 
@@ -128,7 +131,7 @@ class NewsScraper(BaseScraper):
                     r.metadata["feed_name"] = feed_name
                 all_results.extend(results)
             except Exception as e:
-                print(f"Error scraping feed {feed_name}: {e}")
+                logger.error(f"Error scraping feed {feed_name}: {e}")
         return all_results
 
     def _parse_feed_entry(self, entry: Any, feed_url: str) -> ScrapedContent:
@@ -158,13 +161,13 @@ class NewsScraper(BaseScraper):
         if "published_parsed" in entry and entry.published_parsed:
             try:
                 published_at = datetime(*entry.published_parsed[:6])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse published_parsed date: {e}")
         elif "published" in entry:
             try:
                 published_at = parsedate_to_datetime(entry.published)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse published date: {e}")
 
         # Get tags/categories
         tags = []

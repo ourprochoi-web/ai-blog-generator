@@ -5,9 +5,12 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import List, Optional
+import logging
 from xml.etree import ElementTree
 
 from backend.app.services.scrapers.base import BaseScraper, ScrapedContent
+
+logger = logging.getLogger(__name__)
 
 
 class ArxivScraper(BaseScraper):
@@ -128,8 +131,7 @@ class ArxivScraper(BaseScraper):
                 content = await self.scrape(url)
                 results.append(content)
             except Exception as e:
-                # Log error but continue with other URLs
-                print(f"Error scraping {url}: {e}")
+                logger.error(f"Error scraping arXiv paper {url}: {e}")
         return results
 
     async def search(
@@ -168,7 +170,7 @@ class ArxivScraper(BaseScraper):
                     content = await self.scrape(arxiv_url)
                     results.append(content)
                 except Exception as e:
-                    print(f"Error scraping {arxiv_url}: {e}")
+                    logger.error(f"Error scraping arXiv search result {arxiv_url}: {e}")
 
         return results
 

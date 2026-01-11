@@ -9,6 +9,8 @@ from typing import List, Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from pytz import UTC
+from slugify import slugify
 
 from backend.app.config import SCRAPE_SOURCES, settings
 from backend.app.db.database import get_supabase_client
@@ -34,7 +36,8 @@ def get_scheduler() -> AsyncIOScheduler:
     """Get or create the scheduler instance."""
     global scheduler
     if scheduler is None:
-        scheduler = AsyncIOScheduler()
+        # Use explicit UTC timezone to avoid warning
+        scheduler = AsyncIOScheduler(timezone=UTC)
     return scheduler
 
 
@@ -183,8 +186,8 @@ async def evaluate_pending_sources() -> dict:
                 "reviewed_at": datetime.utcnow().isoformat(),
             }
 
-            # Auto-select if score meets threshold
-            if evaluation.relevance_score >= settings.AUTO_GENERATE_MIN_SCORE * 10:
+            # Auto-select if score meets threshold (score is 0-100)
+            if evaluation.relevance_score >= settings.AUTO_GENERATE_MIN_SCORE:
                 update_data["is_selected"] = True
                 update_data["status"] = SourceStatus.SELECTED.value
                 update_data["selection_note"] = f"Auto-selected: {evaluation.reason}"
@@ -283,7 +286,6 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
             )
 
             # Generate slug
-            from slugify import slugify
             slug = slugify(generated.title, max_length=200)
             if await article_repo.slug_exists(slug):
                 base_slug = slug

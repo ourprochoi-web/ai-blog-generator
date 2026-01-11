@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import re
 from datetime import datetime
 from typing import List, Optional
@@ -10,6 +12,8 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 from backend.app.services.scrapers.base import BaseScraper, ScrapedContent
+
+logger = logging.getLogger(__name__)
 
 
 class ArticleScraper(BaseScraper):
@@ -62,7 +66,7 @@ class ArticleScraper(BaseScraper):
                 content = await self.scrape(url)
                 results.append(content)
             except Exception as e:
-                print(f"Error scraping {url}: {e}")
+                logger.error(f"Error scraping {url}: {e}")
         return results
 
     def _extract_title(self, soup: BeautifulSoup) -> str:
@@ -226,7 +230,6 @@ class ArticleScraper(BaseScraper):
         # JSON-LD structured data
         for script in soup.select('script[type="application/ld+json"]'):
             try:
-                import json
                 data = json.loads(script.string)
                 if isinstance(data, dict):
                     for key in ["datePublished", "dateCreated"]:
@@ -234,8 +237,8 @@ class ArticleScraper(BaseScraper):
                             return datetime.fromisoformat(
                                 data[key].replace("Z", "+00:00")
                             )
-            except Exception:
-                pass
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                logger.debug(f"Failed to parse JSON-LD date: {e}")
 
         # Meta tags
         meta_selectors = [

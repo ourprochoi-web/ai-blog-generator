@@ -1,4 +1,4 @@
-"""Gemini API client."""
+"""Gemini API client using the new google-genai SDK."""
 
 from __future__ import annotations
 
@@ -7,8 +7,9 @@ import logging
 import time
 from typing import Optional
 
-import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions
+from google import genai
+from google.genai import types
+from google.genai.errors import APIError
 
 from backend.app.config import settings
 from backend.app.services.llm.base import BaseLLM, LLMResponse
@@ -28,7 +29,7 @@ class GeminiClient(BaseLLM):
 
     def __init__(
         self,
-        model: str = "models/gemini-2.5-flash",
+        model: str = "gemini-2.5-flash",
         api_key: Optional[str] = None,
         timeout: int = DEFAULT_TIMEOUT,
     ):
@@ -47,8 +48,8 @@ class GeminiClient(BaseLLM):
         if not api_key:
             raise ValueError("Gemini API key is required")
 
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model)
+        # Initialize the new google-genai client
+        self.client = genai.Client(api_key=api_key)
 
     async def generate(
         self,
@@ -61,7 +62,7 @@ class GeminiClient(BaseLLM):
         start_time = time.time()
 
         # Build generation config
-        config = genai.types.GenerationConfig(
+        config = types.GenerateContentConfig(
             temperature=temperature,
         )
         if max_tokens:
@@ -77,9 +78,10 @@ class GeminiClient(BaseLLM):
         for attempt in range(MAX_RETRIES):
             try:
                 response = await asyncio.wait_for(
-                    self.model.generate_content_async(
-                        full_prompt,
-                        generation_config=config,
+                    self.client.aio.models.generate_content(
+                        model=self.model_name,
+                        contents=full_prompt,
+                        config=config,
                     ),
                     timeout=self.timeout,
                 )
@@ -87,18 +89,18 @@ class GeminiClient(BaseLLM):
             except asyncio.TimeoutError:
                 logger.error(f"Gemini API timeout after {self.timeout}s (attempt {attempt + 1}/{MAX_RETRIES})")
                 last_exception = TimeoutError(f"Gemini API request timed out after {self.timeout} seconds")
-            except google_exceptions.ResourceExhausted as e:
-                # Rate limit error (429)
-                delay = INITIAL_RETRY_DELAY * (2 ** attempt)
-                logger.warning(f"Rate limited, retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
-                last_exception = e
-                await asyncio.sleep(delay)
-            except google_exceptions.ServiceUnavailable as e:
-                # Service temporarily unavailable (503)
-                delay = INITIAL_RETRY_DELAY * (2 ** attempt)
-                logger.warning(f"Service unavailable, retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
-                last_exception = e
-                await asyncio.sleep(delay)
+            except APIError as e:
+                error_code = getattr(e, 'code', None)
+                # Rate limit error (429) or Service unavailable (503)
+                if error_code in (429, 503):
+                    delay = INITIAL_RETRY_DELAY * (2 ** attempt)
+                    logger.warning(f"API error {error_code}, retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
+                    last_exception = e
+                    await asyncio.sleep(delay)
+                else:
+                    # Other API errors - don't retry
+                    logger.error(f"Gemini API error: {e}")
+                    raise
             except Exception as e:
                 # Other errors - don't retry
                 logger.error(f"Gemini API error: {e}")
@@ -154,6 +156,6 @@ class GeminiProClient(GeminiClient):
 
     def __init__(self, api_key: Optional[str] = None):
         super().__init__(
-            model="models/gemini-2.5-pro",
+            model="gemini-2.5-pro",
             api_key=api_key,
         )

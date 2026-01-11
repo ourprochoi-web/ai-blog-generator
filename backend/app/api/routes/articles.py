@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -102,8 +103,6 @@ async def get_articles_by_date(
 
     # Parse date and create range
     try:
-        from datetime import datetime
-
         parsed_date = datetime.strptime(date, "%Y-%m-%d")
         next_date = parsed_date.replace(hour=23, minute=59, second=59)
         start_date = parsed_date.replace(hour=0, minute=0, second=0)

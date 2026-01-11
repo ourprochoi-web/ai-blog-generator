@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import math
+
+logger = logging.getLogger(__name__)
 from typing import List, Optional
 from uuid import UUID
 
@@ -548,9 +551,8 @@ async def evaluate_source(
                         str(source_id),
                         {"selection_note": f"Suggested: {evaluation.suggested_topic}"},
                     )
-            except Exception:
-                # Ignore DB errors (column may not exist yet)
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to save evaluation to DB for source {source_id}: {e}")
 
         return EvaluationResponse(
             source_id=source_id,

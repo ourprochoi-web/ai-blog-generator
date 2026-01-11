@@ -29,7 +29,10 @@ class Settings(BaseSettings):
     SCRAPE_INTERVAL_HOURS: int = 12  # 스크래핑 주기
     MAX_ARTICLES_PER_EDITION: int = 3  # 에디션당 최대 글 생성 수 (morning/evening)
     MAX_ARTICLES_PER_DAY: int = 6  # 하루 최대 글 생성 수 (3글 x 2회)
-    AUTO_GENERATE_MIN_SCORE: float = 7.0  # 자동 생성 최소 relevance_score
+    AUTO_GENERATE_MIN_SCORE: float = 70.0  # 자동 생성 최소 relevance_score (0-100 scale)
+
+    # CORS settings
+    CORS_ORIGINS: str = ""  # Comma-separated list of allowed origins (empty = allow all)
 
     # Edition settings (KST = UTC+9)
     MORNING_EDITION_HOUR: int = 8   # 오전 8시 KST

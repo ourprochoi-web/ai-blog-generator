@@ -38,7 +38,14 @@ Your articles always:
 - Include real-world applications and implications
 - Provide technical depth without being overwhelming
 - End with future outlook and actionable insights
-- Use accurate information only - never fabricate facts or links"""
+- Use accurate information only - never fabricate facts or links
+
+SEO Best Practices:
+- Structure content for both humans and AI systems
+- Use short paragraphs (2-3 sentences max)
+- Include tables for comparisons and specifications
+- Add bullet points and numbered lists for scannability
+- Create clear section hierarchies (H2, H3)"""
 
     @classmethod
     def get_article_prompt(
@@ -89,25 +96,46 @@ Your articles always:
 - Format: Markdown
 - Language: English
 
-### Structure Requirements
-1. **Title**: Create an engaging, rephrased title (not just copying the original)
-2. **Subtitle**: Write a compelling subtitle (max 140 characters)
-3. **Introduction**: 
+### Structure Requirements (SEO-Optimized)
+1. **TL;DR Section** (Required):
+   - Start with a "## TL;DR" section
+   - 3-4 bullet points summarizing key takeaways
+   - This helps readers and AI systems quickly understand the article
+
+2. **Title**: Create an engaging, rephrased title (not just copying the original)
+
+3. **Subtitle**: Write a compelling subtitle (max 140 characters)
+
+4. **Introduction**:
    - Hook the reader with why this topic matters now
    - Provide necessary background context
    - Preview what the article will cover
-4. **Main Body**:
-   - Use clear section headings (## or ###)
-   - Keep paragraphs short (2-4 sentences)
-   - Include practical examples where relevant
-   - Present balanced analysis (advantages and challenges)
-   - Use bullet points or numbered lists for clarity
-5. **Conclusion**:
+
+5. **Main Body**:
+   - Use clear section headings (## for main sections, ### for subsections)
+   - Keep paragraphs SHORT (2-3 sentences maximum)
+   - Include at least ONE comparison table using markdown table format
+   - Use bullet points or numbered lists frequently
+   - Add a "### Key Takeaways" box after major sections
+
+6. **FAQ Section** (Required):
+   - Include "## Frequently Asked Questions" section
+   - Add 3-4 relevant Q&A pairs
+   - Format: "### Q: Question here?" followed by answer paragraph
+
+7. **Conclusion**:
    - Summarize key takeaways
    - Discuss future implications
    - End with a thought-provoking statement
 
 {type_specific}
+
+### SEO & Readability Requirements
+- Use markdown tables for any comparisons, specs, or data
+- Break up long paragraphs - max 3 sentences per paragraph
+- Include at least 5-7 bullet point lists throughout
+- Add descriptive subheadings every 200-300 words
+- Front-load important information in each section
 
 ### Critical Rules
 - NEVER fabricate information, statistics, or quotes
@@ -147,13 +175,15 @@ Now write the article:"""
 - Explain why this matters to the reader
 - Provide context about the companies/people involved
 - Discuss potential impact on the industry
-- Include analysis of what this means for the future"""
+- Include analysis of what this means for the future
+- Add a timeline table if multiple events are involved"""
 
         elif source_type == SourceType.PAPER:
             return """### Research Paper Specific Guidelines
 - Explain the research problem being addressed
 - Break down the methodology in accessible terms
 - Highlight key findings and their significance
+- Include a table comparing this research to prior work if applicable
 - Discuss practical applications of the research
 - Address limitations and future research directions
 - Make complex concepts understandable to non-experts"""
@@ -163,7 +193,7 @@ Now write the article:"""
 - Identify and elaborate on the key arguments
 - Provide additional context and background
 - Include practical applications and examples
-- Present balanced perspectives
+- Present balanced perspectives in a comparison table if relevant
 - Add your analytical insights"""
 
     @classmethod
@@ -244,3 +274,32 @@ Return the improved article in the same JSON format:
     "meta_description": "SEO description"
 }}
 ```"""
+
+    @classmethod
+    def get_image_prompt(cls, title: str, content_summary: str) -> str:
+        """
+        Generate prompt for creating a hero image.
+
+        Args:
+            title: Article title
+            content_summary: Brief summary of article content
+
+        Returns:
+            Prompt for image generation
+        """
+        return f"""Create a professional, modern hero image for a tech blog article.
+
+Article Title: {title}
+
+Content Summary: {content_summary}
+
+Image Requirements:
+- Style: Clean, modern, professional tech illustration
+- Colors: Use a blue/purple tech color palette with good contrast
+- Composition: Centered, balanced, suitable for a blog header
+- Elements: Include abstract representations of AI/technology concepts
+- Text: Do NOT include any text in the image
+- Mood: Innovative, forward-thinking, trustworthy
+- Aspect Ratio: 16:9 landscape format
+
+Generate a visually striking image that represents the core theme of this AI/technology article."""
