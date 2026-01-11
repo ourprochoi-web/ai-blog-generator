@@ -19,6 +19,8 @@ from backend.app.db.repositories.article_repo import (
     ArticleVersionRepository,
 )
 from backend.app.models.article import ArticleEdition, ArticleStatus
+from backend.app.services.llm.image_generator import ImageGenerator
+from backend.app.services.storage.supabase_storage import SupabaseStorage
 from backend.app.schemas.article import (
     ArticleCreate,
     ArticleListResponse,
@@ -420,3 +422,73 @@ async def get_article_versions(
 
     versions = await version_repo.get_versions_by_article(str(article_id))
     return {"article_id": str(article_id), "versions": versions}
+
+
+@router.post("/{article_id}/regenerate-image")
+async def regenerate_article_image(
+    article_id: UUID,
+    repo: ArticleRepository = Depends(get_article_repo),
+):
+    """Regenerate hero image for an existing article."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    existing = await repo.get_by_id(str(article_id))
+    if not existing:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    title = existing.get("title", "")
+    slug = existing.get("slug", "")
+    meta_description = existing.get("meta_description", "")
+
+    try:
+        # Initialize image generator and storage
+        image_generator = ImageGenerator()
+        storage = SupabaseStorage()
+
+        logger.info(f"Generating hero image for: {title[:50]}")
+
+        # Generate image
+        image_data = await image_generator.generate_hero_image(
+            article_title=title,
+            article_summary=meta_description or title,
+        )
+
+        if not image_data:
+            raise HTTPException(status_code=500, detail="Failed to generate image")
+
+        # Log image data info for debugging
+        logger.info(f"Image data type: {type(image_data)}, length: {len(image_data)}")
+
+        # Check if it's valid PNG (starts with PNG magic bytes)
+        if isinstance(image_data, bytes) and len(image_data) > 8:
+            header_hex = image_data[:8].hex()
+            logger.info(f"Image header (hex): {header_hex}")
+            if not header_hex.startswith("89504e47"):  # PNG magic bytes
+                logger.warning("Image does not have valid PNG header!")
+
+        # Upload to storage
+        hero_image_url = await storage.upload_image(
+            image_data=image_data,
+            article_slug=slug,
+            image_type="hero",
+        )
+
+        if not hero_image_url:
+            raise HTTPException(status_code=500, detail="Failed to upload image")
+
+        # Update article with new image URL
+        updated = await repo.update(str(article_id), {"og_image_url": hero_image_url})
+
+        return {
+            "success": True,
+            "article_id": str(article_id),
+            "og_image_url": hero_image_url,
+            "image_size_bytes": len(image_data),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Image regeneration failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
