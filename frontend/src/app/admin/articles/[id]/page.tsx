@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -16,12 +16,9 @@ import {
 
 type ArticleStatus = 'draft' | 'review' | 'published' | 'archived';
 
-export default function ArticleEditorPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+export default function ArticleEditorPage() {
+  const params = useParams();
+  const id = params.id as string;
   const router = useRouter();
 
   const [article, setArticle] = useState<Article | null>(null);
