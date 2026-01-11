@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -10,6 +11,8 @@ from typing import Any, Dict, List, Optional
 from backend.app.services.generators.prompts import PromptTemplates, SourceType
 from backend.app.services.generators.reference_validator import ReferenceValidator
 from backend.app.services.llm.gemini import GeminiClient
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -148,29 +151,37 @@ class BlogWriter:
         Returns:
             Parsed article data dictionary
         """
+        logger.debug(f"Parsing response (first 500 chars): {response_text[:500]}")
+
         # Find all ```json markers and extract JSON using brace-matching
         json_objects = self._find_json_in_code_blocks(response_text)
+        logger.debug(f"Found {len(json_objects)} JSON objects in code blocks")
 
         # Try each JSON block (prefer later ones as they're usually the final answer)
-        for parsed in reversed(json_objects):
+        for i, parsed in enumerate(reversed(json_objects)):
+            logger.debug(f"Trying JSON block {i}, title: {parsed.get('title', 'NO TITLE')[:50] if isinstance(parsed, dict) else 'NOT DICT'}")
             # Handle nested JSON - if content itself contains ```json, parse it
             parsed = self._unwrap_nested_json(parsed)
             if self._is_valid_article(parsed):
+                logger.info(f"Successfully parsed article: {parsed.get('title', '')[:50]}")
                 return parsed
 
         # If no valid JSON in code blocks, try to extract JSON object directly
         # Find balanced braces for JSON object
         json_str = self._extract_json_object(response_text)
         if json_str:
+            logger.debug(f"Extracted JSON directly (first 200 chars): {json_str[:200]}")
             try:
                 parsed = json.loads(json_str)
                 parsed = self._unwrap_nested_json(parsed)
                 if self._is_valid_article(parsed):
+                    logger.info(f"Successfully parsed article from direct extraction: {parsed.get('title', '')[:50]}")
                     return parsed
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON decode error: {e}")
 
         # Fallback: treat entire response as content
+        logger.warning(f"Falling back to raw content. Response starts with: {response_text[:100]}")
         return {
             "title": "Generated Article",
             "subtitle": "",
