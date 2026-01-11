@@ -289,11 +289,20 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
                     slug = f"{base_slug}-{counter}"
                     counter += 1
 
+            # Truncate fields to fit DB constraints
+            meta_desc = generated.meta_description
+            if meta_desc and len(meta_desc) > 160:
+                meta_desc = meta_desc[:157] + "..."
+
+            subtitle = generated.subtitle
+            if subtitle and len(subtitle) > 200:
+                subtitle = subtitle[:197] + "..."
+
             # Save article with edition
             await article_repo.create({
                 "source_id": source["id"],
-                "title": generated.title,
-                "subtitle": generated.subtitle,
+                "title": generated.title[:300] if generated.title else "Untitled",
+                "subtitle": subtitle,
                 "slug": slug,
                 "content": generated.content,
                 "tags": generated.tags,
@@ -302,7 +311,7 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
                 "char_count": generated.char_count,
                 "status": "draft",
                 "edition": current_edition.value,
-                "meta_description": generated.meta_description,
+                "meta_description": meta_desc,
                 "llm_model": generated.llm_model,
                 "generation_time_seconds": generated.generation_time_seconds,
             })
