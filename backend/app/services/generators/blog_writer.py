@@ -151,15 +151,15 @@ class BlogWriter:
         Returns:
             Parsed article data dictionary
         """
-        logger.debug(f"Parsing response (first 500 chars): {response_text[:500]}")
+        logger.info(f"Parsing response (first 500 chars): {response_text[:500]}")
 
         # Find all ```json markers and extract JSON using brace-matching
         json_objects = self._find_json_in_code_blocks(response_text)
-        logger.debug(f"Found {len(json_objects)} JSON objects in code blocks")
+        logger.info(f"Found {len(json_objects)} JSON objects in code blocks")
 
         # Try each JSON block (prefer later ones as they're usually the final answer)
         for i, parsed in enumerate(reversed(json_objects)):
-            logger.debug(f"Trying JSON block {i}, title: {parsed.get('title', 'NO TITLE')[:50] if isinstance(parsed, dict) else 'NOT DICT'}")
+            logger.info(f"Trying JSON block {i}, title: {parsed.get('title', 'NO TITLE')[:50] if isinstance(parsed, dict) else 'NOT DICT'}")
             # Handle nested JSON - if content itself contains ```json, parse it
             parsed = self._unwrap_nested_json(parsed)
             if self._is_valid_article(parsed):
