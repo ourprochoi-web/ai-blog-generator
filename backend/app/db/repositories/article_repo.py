@@ -19,13 +19,13 @@ class ArticleRepository(BaseRepository):
 
     async def get_by_slug(self, slug: str) -> Optional[Dict[str, Any]]:
         """Get an article by slug."""
-        response = self._query().select("*").eq("slug", slug).single().execute()
-        return response.data if response.data else None
+        response = self._query().select("*").eq("slug", slug).limit(1).execute()
+        return response.data[0] if response.data else None
 
     async def get_by_source_id(self, source_id: str) -> Optional[Dict[str, Any]]:
         """Get an article by source ID."""
-        response = self._query().select("*").eq("source_id", source_id).single().execute()
-        return response.data if response.data else None
+        response = self._query().select("*").eq("source_id", source_id).limit(1).execute()
+        return response.data[0] if response.data else None
 
     async def get_by_status(
         self,

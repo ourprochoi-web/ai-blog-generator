@@ -1,0 +1,114 @@
+"""Gemini API client."""
+
+from __future__ import annotations
+
+import time
+from typing import Optional
+
+import google.generativeai as genai
+
+from backend.app.config import settings
+from backend.app.services.llm.base import BaseLLM, LLMResponse
+
+
+class GeminiClient(BaseLLM):
+    """Gemini API client for text generation."""
+
+    def __init__(
+        self,
+        model: str = "models/gemini-2.5-flash",
+        api_key: Optional[str] = None,
+    ):
+        """
+        Initialize Gemini client.
+
+        Args:
+            model: Model name to use (default: gemini-2.5-flash)
+            api_key: Optional API key (uses settings if not provided)
+        """
+        self.model_name = model
+        api_key = api_key or settings.GEMINI_API_KEY
+
+        if not api_key:
+            raise ValueError("Gemini API key is required")
+
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel(model)
+
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.7,
+    ) -> LLMResponse:
+        """Generate text from prompt."""
+        start_time = time.time()
+
+        # Build generation config
+        config = genai.types.GenerationConfig(
+            temperature=temperature,
+        )
+        if max_tokens:
+            config.max_output_tokens = max_tokens
+
+        # Combine system prompt and user prompt
+        full_prompt = prompt
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+
+        # Generate response
+        response = self.model.generate_content(
+            full_prompt,
+            generation_config=config,
+        )
+
+        generation_time = time.time() - start_time
+
+        # Extract token counts from usage metadata
+        input_tokens = 0
+        output_tokens = 0
+        if hasattr(response, "usage_metadata"):
+            input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+            output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
+
+        return LLMResponse(
+            content=response.text,
+            model=self.model_name,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            generation_time_seconds=generation_time,
+        )
+
+    async def generate_with_context(
+        self,
+        prompt: str,
+        context: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.7,
+    ) -> LLMResponse:
+        """Generate text with additional context."""
+        # Combine context with prompt
+        full_prompt = f"Context:\n{context}\n\n---\n\n{prompt}"
+
+        return await self.generate(
+            prompt=full_prompt,
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
+    def get_model_name(self) -> str:
+        """Get the model name."""
+        return self.model_name
+
+
+class GeminiProClient(GeminiClient):
+    """Gemini Pro client for high-quality generation."""
+
+    def __init__(self, api_key: Optional[str] = None):
+        super().__init__(
+            model="models/gemini-2.5-pro",
+            api_key=api_key,
+        )

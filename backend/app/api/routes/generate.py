@@ -7,11 +7,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from slugify import slugify
 
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.article_repo import ArticleRepository
 from backend.app.db.repositories.source_repo import SourceRepository
-from backend.app.schemas.article import ArticlePreviewResponse
+from backend.app.models.article import ArticleStatus
+from backend.app.models.source import SourceStatus
+from backend.app.schemas.article import ArticlePreviewResponse, ArticleResponse
+from backend.app.services.generators.blog_writer import BlogWriter
 from backend.app.services.generators.reference_validator import ReferenceValidator
 
 router = APIRouter(prefix="/generate")
@@ -52,19 +56,20 @@ def get_article_repo():
     return ArticleRepository(client)
 
 
-@router.post("")
+@router.post("", response_model=ArticleResponse)
 async def generate_article(
     request: GenerateRequest,
     source_repo: SourceRepository = Depends(get_source_repo),
     article_repo: ArticleRepository = Depends(get_article_repo),
 ):
     """
-    Generate a blog article from a source.
+    Generate a blog article from a source using Gemini AI.
 
-    This endpoint will be implemented in Phase 3 with:
-    - Gemini API integration
-    - Prompt templates
-    - Content generation pipeline
+    This endpoint:
+    1. Loads source content
+    2. Generates article using Gemini LLM
+    3. Validates any references in the generated content
+    4. Saves to database (if save=True)
     """
     # Check if source exists
     source = await source_repo.get_by_id(str(request.source_id))
@@ -79,19 +84,78 @@ async def generate_article(
             detail="Article already exists for this source",
         )
 
-    # TODO: Implement in Phase 3
-    # 1. Load source content
-    # 2. Determine article length based on source type
-    # 3. Generate article using Gemini
-    # 4. Validate references
-    # 5. Save to database (if save=True)
+    try:
+        # Generate article using BlogWriter
+        writer = BlogWriter()
+        metadata = source.get("metadata", {})
 
-    return {
-        "message": "Article generation will be implemented in Phase 3",
-        "source_id": str(request.source_id),
-        "source_type": source["type"],
-        "source_title": source["title"],
-    }
+        generated = await writer.generate_article(
+            source_type=source["type"],
+            title=source["title"],
+            content=source.get("content", ""),
+            summary=source.get("summary"),
+            author=metadata.get("author") or metadata.get("authors"),
+            metadata=metadata,
+            validate_references=True,
+        )
+
+        # Generate slug
+        slug = slugify(generated.title, max_length=200)
+        if await article_repo.slug_exists(slug):
+            base_slug = slug
+            counter = 1
+            while await article_repo.slug_exists(slug):
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+        # Prepare article data
+        article_data = {
+            "source_id": str(request.source_id),
+            "title": generated.title,
+            "subtitle": generated.subtitle,
+            "slug": slug,
+            "content": generated.content,
+            "tags": generated.tags,
+            "references": generated.references,
+            "word_count": generated.word_count,
+            "char_count": generated.char_count,
+            "status": ArticleStatus.DRAFT.value,
+            "meta_description": generated.meta_description,
+            "llm_model": generated.llm_model,
+            "generation_time_seconds": generated.generation_time_seconds,
+        }
+
+        if request.save:
+            # Save to database
+            created = await article_repo.create(article_data)
+
+            # Update source status to processed
+            await source_repo.update_status(
+                str(request.source_id),
+                SourceStatus.PROCESSED
+            )
+
+            return ArticleResponse(**created)
+        else:
+            # Return preview without saving
+            article_data["id"] = "00000000-0000-0000-0000-000000000000"
+            article_data["created_at"] = None
+            article_data["updated_at"] = None
+            article_data["published_at"] = None
+            article_data["og_image_url"] = None
+            return ArticleResponse(**article_data)
+
+    except Exception as e:
+        # Update source status to failed
+        await source_repo.update_status(
+            str(request.source_id),
+            SourceStatus.FAILED,
+            error_message=str(e)
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate article: {str(e)}"
+        )
 
 
 @router.post("/preview", response_model=ArticlePreviewResponse)
@@ -102,23 +166,42 @@ async def generate_preview(
     """
     Generate a preview of the article without saving.
 
-    This endpoint will be implemented in Phase 3.
+    Returns the generated article content without persisting to database.
     """
     source = await source_repo.get_by_id(str(request.source_id))
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
 
-    # TODO: Implement in Phase 3
-    # Return mock preview for now
-    return ArticlePreviewResponse(
-        title=f"[Preview] {source['title']}",
-        subtitle="This is a preview - actual generation coming in Phase 3",
-        content="Article content will be generated here using Gemini AI.",
-        tags=["AI", "Preview"],
-        references=[],
-        word_count=0,
-        char_count=0,
-    )
+    try:
+        # Generate article using BlogWriter
+        writer = BlogWriter()
+        metadata = source.get("metadata", {})
+
+        generated = await writer.generate_article(
+            source_type=source["type"],
+            title=source["title"],
+            content=source.get("content", ""),
+            summary=source.get("summary"),
+            author=metadata.get("author") or metadata.get("authors"),
+            metadata=metadata,
+            validate_references=False,  # Skip validation for preview
+        )
+
+        return ArticlePreviewResponse(
+            title=generated.title,
+            subtitle=generated.subtitle,
+            content=generated.content,
+            tags=generated.tags,
+            references=generated.references,
+            word_count=generated.word_count,
+            char_count=generated.char_count,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate preview: {str(e)}"
+        )
 
 
 @router.post("/validate-refs", response_model=List[RefValidationResult])
