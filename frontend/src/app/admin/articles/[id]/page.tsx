@@ -181,6 +181,24 @@ export default function ArticleEditorPage() {
     }
   };
 
+  const handleDeleteImage = async () => {
+    if (!article || !article.og_image_url) return;
+
+    if (!confirm('Are you sure you want to delete this image?')) return;
+
+    try {
+      setIsSaving(true);
+      setError(null);
+      const updatedArticle = await updateArticle(id, { og_image_url: null });
+      setArticle(updatedArticle);
+      alert('Image deleted successfully!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete image');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div style={styles.loading}>
@@ -332,7 +350,13 @@ export default function ArticleEditorPage() {
           <div style={styles.formGroup}>
             <label style={styles.label}>Hero Image (OG Image)</label>
             <div style={styles.imageSection}>
-              {article.og_image_url ? (
+              {isRegeneratingImage ? (
+                <div style={styles.imageLoading}>
+                  <div style={styles.spinner} />
+                  <p style={styles.loadingText}>Generating image with AI...</p>
+                  <p style={styles.loadingSubtext}>This may take 10-30 seconds</p>
+                </div>
+              ) : article.og_image_url ? (
                 <div style={styles.imagePreview}>
                   <img
                     src={article.og_image_url}
@@ -350,10 +374,17 @@ export default function ArticleEditorPage() {
                     </a>
                     <button
                       onClick={handleRegenerateImage}
-                      disabled={isRegeneratingImage}
+                      disabled={isRegeneratingImage || isSaving}
                       style={styles.regenerateButton}
                     >
-                      {isRegeneratingImage ? 'Generating...' : 'Regenerate Image'}
+                      Regenerate
+                    </button>
+                    <button
+                      onClick={handleDeleteImage}
+                      disabled={isRegeneratingImage || isSaving}
+                      style={styles.deleteImageButton}
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -365,7 +396,7 @@ export default function ArticleEditorPage() {
                     disabled={isRegeneratingImage}
                     style={styles.generateImageButton}
                   >
-                    {isRegeneratingImage ? 'Generating...' : 'Generate Image'}
+                    Generate Image
                   </button>
                 </div>
               )}
@@ -703,6 +734,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: 6,
     cursor: 'pointer',
   },
+  deleteImageButton: {
+    padding: '8px 16px',
+    fontSize: 14,
+    fontWeight: 500,
+    color: '#DC2626',
+    backgroundColor: 'white',
+    border: '1px solid #FCA5A5',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
   noImage: {
     display: 'flex',
     flexDirection: 'column',
@@ -723,6 +764,33 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: 'none',
     borderRadius: 6,
     cursor: 'pointer',
+  },
+  imageLoading: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    padding: 48,
+  },
+  spinner: {
+    width: 40,
+    height: 40,
+    border: '3px solid #E5E7EB',
+    borderTopColor: '#8B5CF6',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: 500,
+    color: '#374151',
+    margin: 0,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    margin: 0,
   },
   formGroup: {
     marginBottom: 24,

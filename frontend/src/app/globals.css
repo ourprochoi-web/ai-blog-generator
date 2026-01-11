@@ -134,3 +134,13 @@ button {
 .transition-colors {
   transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
+
+/* Spinner animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

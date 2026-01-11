@@ -163,19 +163,27 @@ Suitable for a professional AI/tech blog."""
         style: str,
     ) -> str:
         """Create a prompt for hero image generation."""
-        return f"""Generate a visually striking hero image for a tech blog article.
+        return f"""Create a purely visual, abstract artwork that represents the mood and concept of this article:
 
-Title: {title}
-Summary: {summary}
+Topic: {title}
+Context: {summary}
 
-Requirements:
-- Style: {style}
-- Modern, professional aesthetic suitable for an AI/tech blog
-- Abstract or conceptual representation of the topic
-- Clean composition with good visual hierarchy
-- NO text, logos, or watermarks in the image
-- 16:9 aspect ratio preferred
-- High contrast and vibrant but professional colors
+CRITICAL RULES - MUST FOLLOW:
+1. ABSOLUTELY NO TEXT of any kind - no letters, words, titles, labels, captions, watermarks, or logos
+2. ABSOLUTELY NO UI ELEMENTS - no buttons, screens, interfaces, or mockups
+3. This must be a PURELY VISUAL image with NO readable content
 
-The image should capture the essence of the article topic in a visually appealing way
-that would work well as a blog header image."""
+Visual Style:
+- {style}
+- Abstract, conceptual, or metaphorical representation
+- Use symbolic imagery, geometric shapes, light effects, and color gradients
+- Modern, cinematic quality with professional color grading
+- Deep, rich colors with dramatic lighting (think: blue, purple, teal, orange accents)
+- 16:9 aspect ratio, suitable as a blog hero banner
+
+Think of this as creating album cover art or movie poster visuals - evocative imagery that captures a feeling, not literal representations. Use visual metaphors like:
+- Light rays, glowing orbs, or energy flows for innovation/technology
+- Abstract neural networks or constellation patterns for AI topics
+- Flowing gradients and depth for complex concepts
+
+The image should evoke the EMOTION and THEME of the article through pure visual artistry."""
