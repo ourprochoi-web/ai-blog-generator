@@ -105,10 +105,12 @@ class BlogWriter:
         )
 
         # Generate article using LLM
+        # Use high max_tokens for long articles (15k-20k chars need ~20k+ tokens)
         response = await self.llm.generate(
             prompt=prompt,
             system_prompt=PromptTemplates.SYSTEM_PROMPT,
             temperature=0.7,
+            max_tokens=32000,
         )
 
         # Parse the JSON response
