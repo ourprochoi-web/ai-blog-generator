@@ -245,6 +245,46 @@ export async function triggerFullPipeline(): Promise<{ message: string }> {
   return { message: result.message };
 }
 
+// Pipeline progress event from SSE stream
+export interface PipelineProgressEvent {
+  step: 'scrape' | 'evaluate' | 'generate' | 'done' | 'error';
+  status: 'running' | 'completed' | 'error';
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+// Stream full pipeline with progress updates
+export function streamFullPipeline(
+  onProgress: (event: PipelineProgressEvent) => void,
+  onError?: (error: Error) => void,
+  onComplete?: () => void
+): () => void {
+  const eventSource = new EventSource(`${API_URL}/api/scheduler/run/stream`);
+
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data) as PipelineProgressEvent;
+      onProgress(data);
+
+      // Close connection when done or error
+      if (data.step === 'done' || data.step === 'error') {
+        eventSource.close();
+        onComplete?.();
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  };
+
+  eventSource.onerror = () => {
+    eventSource.close();
+    onError?.(new Error('Connection lost'));
+  };
+
+  // Return cleanup function
+  return () => eventSource.close();
+}
+
 export async function getSchedulerStatus(): Promise<{
   running: boolean;
   next_run: string | null;

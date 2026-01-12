@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 from datetime import datetime
-from typing import Optional
+from typing import AsyncGenerator, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.app.config import settings
@@ -14,8 +18,11 @@ from backend.app.scheduler.jobs import (
     generate_articles_from_selected,
     get_scheduler,
     run_full_pipeline,
+    run_full_pipeline_with_progress,
     scrape_all_sources,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/scheduler")
 
@@ -103,4 +110,38 @@ async def run_generate_now(background_tasks: BackgroundTasks):
     return JobResult(
         success=True,
         message="Generation job started in background",
+    )
+
+
+@router.get("/run/stream")
+async def run_pipeline_stream():
+    """
+    Run full pipeline with real-time progress updates via Server-Sent Events.
+
+    Returns SSE stream with progress events.
+    """
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        """Generate SSE events from pipeline progress."""
+        try:
+            async for progress in run_full_pipeline_with_progress():
+                event_data = json.dumps(progress)
+                yield f"data: {event_data}\n\n"
+        except Exception as e:
+            logger.error(f"Pipeline stream error: {e}")
+            error_event = json.dumps({
+                "step": "error",
+                "status": "error",
+                "message": str(e),
+            })
+            yield f"data: {error_event}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )

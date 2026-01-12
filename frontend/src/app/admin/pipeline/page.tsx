@@ -1,19 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   triggerScraping,
   triggerGeneration,
-  triggerFullPipeline,
+  streamFullPipeline,
   getSchedulerStatus,
+  type PipelineProgressEvent,
 } from '@/lib/admin-api';
 
 interface LogEntry {
   id: string;
   timestamp: string;
-  type: 'scrape' | 'generate';
+  type: 'scrape' | 'generate' | 'evaluate' | 'pipeline';
   status: 'running' | 'success' | 'error';
   message: string;
+}
+
+interface PipelineStep {
+  step: 'scrape' | 'evaluate' | 'generate';
+  label: string;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  message?: string;
 }
 
 export default function PipelinePage() {
@@ -27,6 +35,12 @@ export default function PipelinePage() {
     running: boolean;
     next_run: string | null;
   } | null>(null);
+  const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([
+    { step: 'scrape', label: 'Scrape Sources', status: 'pending' },
+    { step: 'evaluate', label: 'Evaluate with AI', status: 'pending' },
+    { step: 'generate', label: 'Generate Articles', status: 'pending' },
+  ]);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     async function loadStatus() {
@@ -38,32 +52,69 @@ export default function PipelinePage() {
       }
     }
     loadStatus();
+
+    // Cleanup on unmount
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+      }
+    };
   }, []);
 
-  const addLog = (type: 'scrape' | 'generate' | 'pipeline', status: 'running' | 'success' | 'error', message: string) => {
+  const addLog = (type: 'scrape' | 'generate' | 'evaluate' | 'pipeline', status: 'running' | 'success' | 'error', message: string) => {
     const entry: LogEntry = {
       id: Date.now().toString(),
       timestamp: new Date().toLocaleTimeString(),
-      type: type === 'pipeline' ? 'generate' : type,
+      type,
       status,
       message,
     };
     setLogs((prev) => [entry, ...prev].slice(0, 50));
   };
 
-  const handleFullPipeline = async () => {
-    try {
-      setIsRunningFull(true);
-      addLog('pipeline', 'running', 'Starting full pipeline (scrape -> evaluate -> generate)...');
+  const handleFullPipeline = () => {
+    setIsRunningFull(true);
+    addLog('pipeline', 'running', 'Starting full pipeline...');
 
-      const result = await triggerFullPipeline();
+    // Reset pipeline steps
+    setPipelineSteps([
+      { step: 'scrape', label: 'Scrape Sources', status: 'pending' },
+      { step: 'evaluate', label: 'Evaluate with AI', status: 'pending' },
+      { step: 'generate', label: 'Generate Articles', status: 'pending' },
+    ]);
 
-      addLog('pipeline', 'success', result.message);
-    } catch (err) {
-      addLog('pipeline', 'error', err instanceof Error ? err.message : 'Pipeline failed');
-    } finally {
-      setIsRunningFull(false);
-    }
+    // Start streaming
+    cleanupRef.current = streamFullPipeline(
+      (event: PipelineProgressEvent) => {
+        // Update pipeline step status
+        if (event.step !== 'done' && event.step !== 'error') {
+          setPipelineSteps((prev) =>
+            prev.map((s) =>
+              s.step === event.step
+                ? { ...s, status: event.status === 'completed' ? 'completed' : event.status === 'error' ? 'error' : 'running', message: event.message }
+                : s
+            )
+          );
+        }
+
+        // Add to log
+        const logType = event.step === 'done' || event.step === 'error' ? 'pipeline' : event.step;
+        const logStatus = event.status === 'completed' ? 'success' : event.status === 'error' ? 'error' : 'running';
+        addLog(logType, logStatus, event.message);
+
+        // Handle completion
+        if (event.step === 'done' || event.step === 'error') {
+          setIsRunningFull(false);
+        }
+      },
+      (error) => {
+        addLog('pipeline', 'error', error.message);
+        setIsRunningFull(false);
+      },
+      () => {
+        cleanupRef.current = null;
+      }
+    );
   };
 
   const handleScrape = async () => {
@@ -152,6 +203,46 @@ export default function PipelinePage() {
         <p style={styles.fullPipelineHint}>
           Runs scrape → evaluate → generate in sequence
         </p>
+
+        {/* Pipeline Progress */}
+        {isRunningFull && (
+          <div style={styles.progressContainer}>
+            {pipelineSteps.map((step, index) => (
+              <div key={step.step} style={styles.progressStep}>
+                <div style={styles.progressStepHeader}>
+                  <span style={{
+                    ...styles.progressIcon,
+                    backgroundColor: step.status === 'completed' ? '#10B981' :
+                      step.status === 'running' ? '#F59E0B' :
+                      step.status === 'error' ? '#DC2626' : '#D1D5DB',
+                  }}>
+                    {step.status === 'completed' ? '✓' :
+                     step.status === 'running' ? '⟳' :
+                     step.status === 'error' ? '✕' : (index + 1)}
+                  </span>
+                  <span style={{
+                    ...styles.progressLabel,
+                    color: step.status === 'running' ? '#F59E0B' :
+                           step.status === 'completed' ? '#10B981' :
+                           step.status === 'error' ? '#DC2626' : '#6B7280',
+                    fontWeight: step.status === 'running' ? 600 : 400,
+                  }}>
+                    {step.label}
+                  </span>
+                </div>
+                {step.message && (step.status === 'running' || step.status === 'completed' || step.status === 'error') && (
+                  <p style={styles.progressMessage}>{step.message}</p>
+                )}
+                {index < pipelineSteps.length - 1 && (
+                  <div style={{
+                    ...styles.progressLine,
+                    backgroundColor: step.status === 'completed' ? '#10B981' : '#E5E7EB',
+                  }} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={styles.grid}>
@@ -297,8 +388,12 @@ export default function PipelinePage() {
                 <span
                   style={{
                     ...styles.logType,
-                    backgroundColor: log.type === 'scrape' ? '#DBEAFE' : '#E9D5FF',
-                    color: log.type === 'scrape' ? '#1E40AF' : '#7C3AED',
+                    backgroundColor: log.type === 'scrape' ? '#DBEAFE' :
+                                     log.type === 'evaluate' ? '#FEF3C7' :
+                                     log.type === 'pipeline' ? '#D1FAE5' : '#E9D5FF',
+                    color: log.type === 'scrape' ? '#1E40AF' :
+                           log.type === 'evaluate' ? '#92400E' :
+                           log.type === 'pipeline' ? '#065F46' : '#7C3AED',
                   }}
                 >
                   {log.type}
@@ -352,6 +447,56 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 13,
     color: '#6B7280',
     marginTop: 8,
+  },
+  progressContainer: {
+    marginTop: 24,
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    textAlign: 'left' as const,
+    maxWidth: 400,
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  },
+  progressStep: {
+    position: 'relative' as const,
+    paddingLeft: 40,
+    paddingBottom: 16,
+  },
+  progressStepHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressIcon: {
+    position: 'absolute' as const,
+    left: 0,
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 14,
+    fontWeight: 600,
+    color: 'white',
+  },
+  progressLabel: {
+    fontSize: 15,
+  },
+  progressMessage: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
+    marginLeft: 0,
+  },
+  progressLine: {
+    position: 'absolute' as const,
+    left: 13,
+    top: 32,
+    width: 2,
+    height: 'calc(100% - 32px)',
   },
   grid: {
     display: 'grid',

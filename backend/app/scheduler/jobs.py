@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -426,6 +426,104 @@ async def run_full_pipeline() -> dict:
 
         logger.info("Full pipeline completed")
         return results
+
+
+async def run_full_pipeline_with_progress() -> AsyncGenerator[Dict[str, Any], None]:
+    """
+    Run full pipeline with real-time progress updates.
+
+    Yields progress events for SSE streaming.
+    """
+    # Check if pipeline is already running
+    if _pipeline_lock.locked():
+        yield {
+            "step": "error",
+            "status": "error",
+            "message": "Pipeline already running",
+        }
+        return
+
+    async with _pipeline_lock:
+        logger.info("Starting full pipeline with progress tracking")
+
+        # Step 1: Scrape
+        yield {
+            "step": "scrape",
+            "status": "running",
+            "message": "Scraping sources from RSS feeds and arXiv...",
+        }
+
+        try:
+            scrape_result = await scrape_all_sources()
+            yield {
+                "step": "scrape",
+                "status": "completed",
+                "message": f"Scraped {scrape_result.get('rss_scraped', 0)} RSS, {scrape_result.get('arxiv_scraped', 0)} arXiv",
+                "data": scrape_result,
+            }
+        except Exception as e:
+            logger.error(f"Scrape error: {e}")
+            yield {
+                "step": "scrape",
+                "status": "error",
+                "message": f"Scrape failed: {str(e)}",
+            }
+            # Continue to next step even if scrape fails
+
+        # Step 2: Evaluate
+        yield {
+            "step": "evaluate",
+            "status": "running",
+            "message": "Evaluating sources with AI...",
+        }
+
+        try:
+            evaluate_result = await evaluate_pending_sources()
+            yield {
+                "step": "evaluate",
+                "status": "completed",
+                "message": f"Evaluated {evaluate_result.get('evaluated', 0)} sources, {evaluate_result.get('auto_selected', 0)} selected",
+                "data": evaluate_result,
+            }
+        except Exception as e:
+            logger.error(f"Evaluate error: {e}")
+            yield {
+                "step": "evaluate",
+                "status": "error",
+                "message": f"Evaluation failed: {str(e)}",
+            }
+
+        # Step 3: Generate
+        yield {
+            "step": "generate",
+            "status": "running",
+            "message": "Generating articles from selected sources...",
+        }
+
+        try:
+            generate_result = await generate_articles_from_selected()
+            yield {
+                "step": "generate",
+                "status": "completed",
+                "message": f"Generated {generate_result.get('generated', 0)} articles",
+                "data": generate_result,
+            }
+        except Exception as e:
+            logger.error(f"Generate error: {e}")
+            yield {
+                "step": "generate",
+                "status": "error",
+                "message": f"Generation failed: {str(e)}",
+            }
+
+        # Final done event
+        yield {
+            "step": "done",
+            "status": "completed",
+            "message": "Pipeline completed!",
+        }
+
+        logger.info("Full pipeline with progress completed")
 
 
 def setup_scheduler() -> AsyncIOScheduler:
