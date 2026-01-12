@@ -137,6 +137,33 @@ export function getEdition(dateString: string): 'morning' | 'evening' {
   return hours < 12 ? 'morning' : 'evening';
 }
 
+// Get current edition based on KST time
+export function getCurrentEdition(): 'morning' | 'evening' {
+  // Get current time in KST (UTC+9)
+  const now = new Date();
+  const kstOffset = 9 * 60; // KST is UTC+9
+  const localOffset = now.getTimezoneOffset();
+  const kstTime = new Date(now.getTime() + (kstOffset + localOffset) * 60000);
+  const kstHour = kstTime.getHours();
+
+  // Morning: 00:00-12:00 KST, Evening: 12:00-24:00 KST
+  // But show evening as latest after 8 PM (when evening edition is published)
+  if (kstHour >= 20) {
+    return 'evening';
+  } else if (kstHour >= 8 && kstHour < 20) {
+    return 'morning';
+  } else {
+    // Before 8 AM, show previous day's evening edition as latest
+    return 'evening';
+  }
+}
+
+// Get the latest edition order (which should be shown first)
+export function getEditionOrder(): ['morning' | 'evening', 'morning' | 'evening'] {
+  const current = getCurrentEdition();
+  return current === 'morning' ? ['morning', 'evening'] : ['evening', 'morning'];
+}
+
 // Source statistics
 export interface SourceStats {
   total: number;

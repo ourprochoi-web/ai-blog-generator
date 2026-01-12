@@ -3,25 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
+  getDashboardStats,
+  getSchedulerStatus,
   getArticles,
-  getSources,
   Article,
-  Source,
   formatRelativeTime,
+  DashboardStats,
 } from '@/lib/admin-api';
 
-interface Stats {
-  articles: { draft: number; review: number; published: number; total: number };
-  sources: { pending: number; processed: number; failed: number; total: number };
+interface SchedulerInfo {
+  running: boolean;
+  next_run: string | null;
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats>({
-    articles: { draft: 0, review: 0, published: 0, total: 0 },
-    sources: { pending: 0, processed: 0, failed: 0, total: 0 },
-  });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [schedulerInfo, setSchedulerInfo] = useState<SchedulerInfo | null>(null);
   const [recentArticles, setRecentArticles] = useState<Article[]>([]);
-  const [recentSources, setRecentSources] = useState<Source[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,37 +29,15 @@ export default function AdminDashboard() {
         setIsLoading(true);
         setError(null);
 
-        const [
-          draftRes,
-          reviewRes,
-          publishedRes,
-          pendingSourcesRes,
-          processedSourcesRes,
-        ] = await Promise.all([
+        const [statsRes, schedulerRes, draftRes] = await Promise.all([
+          getDashboardStats(),
+          getSchedulerStatus().catch(() => null),
           getArticles(1, 5, 'draft'),
-          getArticles(1, 1, 'review'),
-          getArticles(1, 1, 'published'),
-          getSources(1, 5, undefined, 'pending'),
-          getSources(1, 1, undefined, 'processed'),
         ]);
 
-        setStats({
-          articles: {
-            draft: draftRes.total,
-            review: reviewRes.total,
-            published: publishedRes.total,
-            total: draftRes.total + reviewRes.total + publishedRes.total,
-          },
-          sources: {
-            pending: pendingSourcesRes.total,
-            processed: processedSourcesRes.total,
-            failed: 0,
-            total: pendingSourcesRes.total + processedSourcesRes.total,
-          },
-        });
-
+        setStats(statsRes);
+        setSchedulerInfo(schedulerRes);
         setRecentArticles(draftRes.items.slice(0, 5));
-        setRecentSources(pendingSourcesRes.items.slice(0, 5));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
@@ -71,6 +47,19 @@ export default function AdminDashboard() {
 
     loadData();
   }, []);
+
+  // Format next run time to KST
+  const formatNextRun = (isoString: string | null) => {
+    if (!isoString) return 'Not scheduled';
+    const date = new Date(isoString);
+    return date.toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }) + ' KST';
+  };
 
   if (isLoading) {
     return (
@@ -96,10 +85,28 @@ export default function AdminDashboard() {
       <h1 style={styles.title}>Dashboard</h1>
       <p style={styles.subtitle}>Overview of your AI blog platform</p>
 
+      {/* Scheduler Status Banner */}
+      {schedulerInfo && (
+        <div style={styles.schedulerBanner}>
+          <div style={styles.schedulerStatus}>
+            <span style={{
+              ...styles.statusDot,
+              backgroundColor: schedulerInfo.running ? '#10B981' : '#EF4444'
+            }} />
+            <span style={styles.schedulerText}>
+              Scheduler {schedulerInfo.running ? 'Running' : 'Stopped'}
+            </span>
+          </div>
+          <div style={styles.nextRun}>
+            Next pipeline: <strong>{formatNextRun(schedulerInfo.next_run)}</strong>
+          </div>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div style={styles.statsGrid}>
         <div style={{ ...styles.statCard, borderLeftColor: '#F59E0B' }}>
-          <div style={styles.statValue}>{stats.articles.draft}</div>
+          <div style={styles.statValue}>{stats?.articles.draft || 0}</div>
           <div style={styles.statLabel}>Draft Articles</div>
           <Link href="/admin/articles?status=draft" style={styles.statLink}>
             View all →
@@ -107,7 +114,7 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ ...styles.statCard, borderLeftColor: '#8B5CF6' }}>
-          <div style={styles.statValue}>{stats.articles.review}</div>
+          <div style={styles.statValue}>{stats?.articles.review || 0}</div>
           <div style={styles.statLabel}>In Review</div>
           <Link href="/admin/articles?status=review" style={styles.statLink}>
             View all →
@@ -115,7 +122,7 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ ...styles.statCard, borderLeftColor: '#10B981' }}>
-          <div style={styles.statValue}>{stats.articles.published}</div>
+          <div style={styles.statValue}>{stats?.articles.published || 0}</div>
           <div style={styles.statLabel}>Published</div>
           <Link href="/admin/articles?status=published" style={styles.statLink}>
             View all →
@@ -123,13 +130,56 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ ...styles.statCard, borderLeftColor: '#3B82F6' }}>
-          <div style={styles.statValue}>{stats.sources.pending}</div>
-          <div style={styles.statLabel}>Pending Sources</div>
-          <Link href="/admin/sources?status=pending" style={styles.statLink}>
+          <div style={styles.statValue}>{stats?.sources.selected || 0}</div>
+          <div style={styles.statLabel}>Selected Sources</div>
+          <Link href="/admin/sources?status=selected" style={styles.statLink}>
             View all →
           </Link>
         </div>
       </div>
+
+      {/* Sources Stats Row */}
+      <div style={styles.sourcesStatsRow}>
+        <div style={styles.sourceStatItem}>
+          <span style={styles.sourceStatValue}>{stats?.sources.pending || 0}</span>
+          <span style={styles.sourceStatLabel}>Pending</span>
+        </div>
+        <div style={styles.sourceStatItem}>
+          <span style={styles.sourceStatValue}>{stats?.sources.selected || 0}</span>
+          <span style={styles.sourceStatLabel}>Selected</span>
+        </div>
+        <div style={styles.sourceStatItem}>
+          <span style={styles.sourceStatValue}>{stats?.sources.processed || 0}</span>
+          <span style={styles.sourceStatLabel}>Processed</span>
+        </div>
+        <div style={styles.sourceStatItem}>
+          <span style={styles.sourceStatValue}>{stats?.sources.skipped || 0}</span>
+          <span style={styles.sourceStatLabel}>Skipped</span>
+        </div>
+        <div style={styles.sourceStatItem}>
+          <span style={{ ...styles.sourceStatValue, color: stats?.sources.failed ? '#EF4444' : '#6B7280' }}>
+            {stats?.sources.failed || 0}
+          </span>
+          <span style={styles.sourceStatLabel}>Failed</span>
+        </div>
+      </div>
+
+      {/* Today Stats */}
+      {stats?.today && (
+        <div style={styles.todayStats}>
+          <h3 style={styles.todayTitle}>Today&apos;s Activity</h3>
+          <div style={styles.todayGrid}>
+            <div style={styles.todayItem}>
+              <span style={styles.todayValue}>{stats.today.articles_generated}</span>
+              <span style={styles.todayLabel}>Articles Generated</span>
+            </div>
+            <div style={styles.todayItem}>
+              <span style={styles.todayValue}>{stats.today.sources_scraped}</span>
+              <span style={styles.todayLabel}>Sources Scraped</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div style={styles.section}>
@@ -150,17 +200,16 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div style={styles.columnsGrid}>
-        {/* Recent Draft Articles */}
-        <div style={styles.column}>
-          <div style={styles.columnHeader}>
-            <h2 style={styles.sectionTitle}>Recent Drafts</h2>
-            <Link href="/admin/articles?status=draft" style={styles.viewAllLink}>
-              View all
-            </Link>
-          </div>
+      {/* Recent Draft Articles */}
+      <div style={styles.section}>
+        <div style={styles.columnHeader}>
+          <h2 style={styles.sectionTitle}>Recent Drafts</h2>
+          <Link href="/admin/articles?status=draft" style={styles.viewAllLink}>
+            View all
+          </Link>
+        </div>
 
+        <div style={styles.column}>
           {recentArticles.length === 0 ? (
             <p style={styles.emptyText}>No draft articles</p>
           ) : (
@@ -173,35 +222,18 @@ export default function AdminDashboard() {
                 >
                   <div style={styles.listItemTitle}>{article.title}</div>
                   <div style={styles.listItemMeta}>
+                    {article.edition && (
+                      <span style={{
+                        ...styles.editionBadge,
+                        backgroundColor: article.edition === 'morning' ? '#FEF3C7' : '#E0E7FF',
+                        color: article.edition === 'morning' ? '#92400E' : '#3730A3',
+                      }}>
+                        {article.edition === 'morning' ? '☀️' : '🌙'} {article.edition}
+                      </span>
+                    )}
                     {formatRelativeTime(article.created_at)} · {article.word_count} words
                   </div>
                 </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Pending Sources */}
-        <div style={styles.column}>
-          <div style={styles.columnHeader}>
-            <h2 style={styles.sectionTitle}>Pending Sources</h2>
-            <Link href="/admin/sources?status=pending" style={styles.viewAllLink}>
-              View all
-            </Link>
-          </div>
-
-          {recentSources.length === 0 ? (
-            <p style={styles.emptyText}>No pending sources</p>
-          ) : (
-            <div style={styles.list}>
-              {recentSources.map((source) => (
-                <div key={source.id} style={styles.listItem}>
-                  <div style={styles.listItemTitle}>{source.title}</div>
-                  <div style={styles.listItemMeta}>
-                    <span style={styles.typeBadge}>{source.type}</span>
-                    {formatRelativeTime(source.scraped_at)}
-                  </div>
-                </div>
               ))}
             </div>
           )}
@@ -245,7 +277,97 @@ const styles: { [key: string]: React.CSSProperties } = {
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 32,
+    marginBottom: 16,
+  },
+  schedulerBanner: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 20px',
+    backgroundColor: '#F0FDF4',
+    border: '1px solid #BBF7D0',
+    borderRadius: 8,
+    marginBottom: 24,
+  },
+  schedulerStatus: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+  },
+  schedulerText: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: '#166534',
+  },
+  nextRun: {
+    fontSize: 13,
+    color: '#166534',
+  },
+  sourcesStatsRow: {
+    display: 'flex',
+    gap: 24,
+    padding: '16px 20px',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    marginBottom: 24,
+  },
+  sourceStatItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sourceStatValue: {
+    fontSize: 20,
+    fontWeight: 600,
+    color: '#111827',
+  },
+  sourceStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  todayStats: {
+    padding: '16px 20px',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    marginBottom: 24,
+  },
+  todayTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#1E40AF',
+    marginBottom: 12,
+  },
+  todayGrid: {
+    display: 'flex',
+    gap: 32,
+  },
+  todayItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+  todayValue: {
+    fontSize: 24,
+    fontWeight: 600,
+    color: '#1E40AF',
+  },
+  todayLabel: {
+    fontSize: 12,
+    color: '#3B82F6',
+  },
+  editionBadge: {
+    padding: '2px 8px',
+    borderRadius: 4,
+    fontSize: 11,
+    fontWeight: 500,
+    marginRight: 8,
   },
   statsGrid: {
     display: 'grid',

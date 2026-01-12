@@ -24,8 +24,10 @@ class SourceStats(BaseModel):
     """Source statistics."""
     total: int
     pending: int
+    selected: int
     processed: int
     failed: int
+    skipped: int
 
 
 class TodayStats(BaseModel):
@@ -65,8 +67,10 @@ async def get_dashboard_stats():
     source_stats = {
         "total": len(sources),
         "pending": sum(1 for s in sources if s.get("status") == "pending"),
+        "selected": sum(1 for s in sources if s.get("status") == "selected"),
         "processed": sum(1 for s in sources if s.get("status") == "processed"),
         "failed": sum(1 for s in sources if s.get("status") == "failed"),
+        "skipped": sum(1 for s in sources if s.get("status") == "skipped"),
     }
 
     # Get today's activity (using UTC)

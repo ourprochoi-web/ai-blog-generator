@@ -74,13 +74,15 @@ async function apiCall<T>(
 export async function getArticles(
   page: number = 1,
   pageSize: number = 20,
-  status?: string
+  status?: string,
+  edition?: 'morning' | 'evening'
 ): Promise<PaginatedResponse<Article>> {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString(),
   });
   if (status) params.append('status', status);
+  if (edition) params.append('edition', edition);
 
   return apiCall<PaginatedResponse<Article>>(`/api/articles?${params}`);
 }
@@ -138,7 +140,7 @@ export async function getSourceById(id: string): Promise<Source> {
 
 export async function updateSourceStatus(
   id: string,
-  status: 'pending' | 'processed' | 'skipped' | 'failed'
+  status: 'pending' | 'selected' | 'processed' | 'skipped' | 'failed'
 ): Promise<Source> {
   return apiCall<Source>(`/api/sources/${id}/status`, {
     method: 'PATCH',
@@ -321,8 +323,10 @@ export interface DashboardStats {
   sources: {
     total: number;
     pending: number;
+    selected: number;
     processed: number;
     failed: number;
+    skipped: number;
   };
   today: {
     articles_generated: number;

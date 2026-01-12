@@ -12,6 +12,7 @@ import {
 } from '@/lib/admin-api';
 
 type ArticleStatus = 'draft' | 'review' | 'published' | 'archived';
+type ArticleEdition = 'morning' | 'evening';
 type SortField = 'created_at' | 'title' | 'word_count';
 type SortOrder = 'asc' | 'desc';
 
@@ -19,6 +20,7 @@ export default function ArticlesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const statusFilter = searchParams.get('status') || '';
+  const editionFilter = (searchParams.get('edition') || '') as ArticleEdition | '';
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [total, setTotal] = useState(0);
@@ -38,7 +40,12 @@ export default function ArticlesPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await getArticles(page, 50, statusFilter || undefined);
+      const res = await getArticles(
+        page,
+        50,
+        statusFilter || undefined,
+        editionFilter || undefined
+      );
       setArticles(res.items || []);
       setTotal(res.total || 0);
       setSelectedIds(new Set());
@@ -48,7 +55,7 @@ export default function ArticlesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, editionFilter]);
 
   useEffect(() => {
     loadArticles();
@@ -155,9 +162,10 @@ export default function ArticlesPage() {
     }
   };
 
-  const setFilter = (status: string) => {
+  const setFilters = (status: string, edition: string) => {
     const params = new URLSearchParams();
     if (status) params.set('status', status);
+    if (edition) params.set('edition', edition);
     router.push(`/admin/articles?${params.toString()}`);
     setPage(1);
   };
@@ -220,19 +228,37 @@ export default function ArticlesPage() {
           )}
         </div>
 
-        <div style={styles.filters}>
-          {['', 'draft', 'review', 'published', 'archived'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              style={{
-                ...styles.filterButton,
-                ...(statusFilter === status ? styles.filterButtonActive : {}),
-              }}
-            >
-              {status || 'All'}
-            </button>
-          ))}
+        <div style={styles.filterSection}>
+          <div style={styles.filterGroup}>
+            <span style={styles.filterLabel}>Status:</span>
+            {['', 'draft', 'review', 'published', 'archived'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilters(status, editionFilter)}
+                style={{
+                  ...styles.filterButton,
+                  ...(statusFilter === status ? styles.filterButtonActive : {}),
+                }}
+              >
+                {status || 'All'}
+              </button>
+            ))}
+          </div>
+          <div style={styles.filterGroup}>
+            <span style={styles.filterLabel}>Edition:</span>
+            {['', 'morning', 'evening'].map((edition) => (
+              <button
+                key={edition}
+                onClick={() => setFilters(statusFilter, edition)}
+                style={{
+                  ...styles.filterButton,
+                  ...(editionFilter === edition ? styles.filterButtonActive : {}),
+                }}
+              >
+                {edition === 'morning' ? '☀️ Morning' : edition === 'evening' ? '🌙 Evening' : 'All'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -305,6 +331,7 @@ export default function ArticlesPage() {
                   Title {getSortIcon('title')}
                 </th>
                 <th style={{ ...styles.th, width: 100 }}>Status</th>
+                <th style={{ ...styles.th, width: 90 }}>Edition</th>
                 <th style={{ ...styles.th, width: 60 }}>Score</th>
                 <th
                   style={{ ...styles.th, width: 80, cursor: 'pointer' }}
@@ -324,7 +351,7 @@ export default function ArticlesPage() {
             <tbody>
               {filteredArticles.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={styles.emptyCell}>
+                  <td colSpan={8} style={styles.emptyCell}>
                     {searchQuery ? 'No articles match your search' : 'No articles found'}
                   </td>
                 </tr>
@@ -368,6 +395,21 @@ export default function ArticlesPage() {
                         >
                           {article.status}
                         </span>
+                      </td>
+                      <td style={styles.td}>
+                        {article.edition ? (
+                          <span
+                            style={{
+                              ...styles.editionBadge,
+                              backgroundColor: article.edition === 'morning' ? '#FEF3C7' : '#E0E7FF',
+                              color: article.edition === 'morning' ? '#92400E' : '#3730A3',
+                            }}
+                          >
+                            {article.edition === 'morning' ? '☀️' : '🌙'} {article.edition}
+                          </span>
+                        ) : (
+                          <span style={styles.noEdition}>-</span>
+                        )}
                       </td>
                       <td style={styles.td}>
                         {article.source_relevance_score != null ? (
@@ -507,9 +549,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#9CA3AF',
     fontSize: 14,
   },
-  filters: {
+  filterSection: {
     display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  filterGroup: {
+    display: 'flex',
+    alignItems: 'center',
     gap: 8,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: '#6B7280',
+    minWidth: 60,
   },
   filterButton: {
     padding: '8px 16px',
@@ -670,6 +724,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 12,
     fontWeight: 500,
     textTransform: 'capitalize',
+  },
+  editionBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    borderRadius: 4,
+    fontSize: 11,
+    fontWeight: 500,
+    textTransform: 'capitalize',
+  },
+  noEdition: {
+    color: '#9CA3AF',
+    fontSize: 12,
   },
   scoreBadge: {
     display: 'inline-block',

@@ -16,8 +16,10 @@ import {
   formatRelativeTime,
 } from '@/lib/admin-api';
 
-type SourceStatus = 'pending' | 'processed' | 'skipped' | 'failed';
+type SourceStatus = 'pending' | 'selected' | 'processed' | 'skipped' | 'failed';
 type SourceType = 'news' | 'paper' | 'article';
+type SortField = 'scraped_at' | 'relevance_score' | 'title';
+type SortOrder = 'asc' | 'desc';
 
 export default function SourcesPage() {
   const searchParams = useSearchParams();
@@ -47,6 +49,10 @@ export default function SourcesPage() {
 
   // Source to Article mapping
   const [sourceArticleMap, setSourceArticleMap] = useState<Map<string, Article>>(new Map());
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('scraped_at');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const loadSources = useCallback(async () => {
     try {
@@ -276,6 +282,49 @@ export default function SourcesPage() {
     }
   };
 
+  const getScoreColor = (score: number | null) => {
+    if (score === null) return { bg: '#F3F4F6', color: '#9CA3AF' };
+    if (score >= 70) return { bg: '#D1FAE5', color: '#065F46' };
+    if (score >= 50) return { bg: '#FEF3C7', color: '#92400E' };
+    return { bg: '#FEE2E2', color: '#991B1B' };
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder(field === 'relevance_score' ? 'desc' : 'desc');
+    }
+  };
+
+  // Sort sources locally
+  const sortedSources = [...sources].sort((a, b) => {
+    let comparison = 0;
+
+    switch (sortField) {
+      case 'relevance_score':
+        const scoreA = a.relevance_score ?? -1;
+        const scoreB = b.relevance_score ?? -1;
+        comparison = scoreA - scoreB;
+        break;
+      case 'title':
+        comparison = a.title.localeCompare(b.title);
+        break;
+      case 'scraped_at':
+      default:
+        comparison = new Date(a.scraped_at).getTime() - new Date(b.scraped_at).getTime();
+        break;
+    }
+
+    return sortOrder === 'asc' ? comparison : -comparison;
+  });
+
+  const getSortIndicator = (field: SortField) => {
+    if (sortField !== field) return '';
+    return sortOrder === 'asc' ? ' ↑' : ' ↓';
+  };
+
   return (
     <div>
       <div style={styles.header}>
@@ -405,23 +454,38 @@ export default function SourcesPage() {
                     style={styles.checkbox}
                   />
                 </th>
-                <th style={styles.th}>Title</th>
+                <th
+                  style={{ ...styles.th, ...styles.sortableHeader }}
+                  onClick={() => handleSort('title')}
+                >
+                  Title{getSortIndicator('title')}
+                </th>
                 <th style={{ ...styles.th, width: 80 }}>Type</th>
                 <th style={{ ...styles.th, width: 100 }}>Status</th>
-                <th style={{ ...styles.th, width: 60 }}>Score</th>
-                <th style={{ ...styles.th, width: 120 }}>Scraped</th>
+                <th
+                  style={{ ...styles.th, ...styles.sortableHeader, width: 70 }}
+                  onClick={() => handleSort('relevance_score')}
+                >
+                  Score{getSortIndicator('relevance_score')}
+                </th>
+                <th
+                  style={{ ...styles.th, ...styles.sortableHeader, width: 120 }}
+                  onClick={() => handleSort('scraped_at')}
+                >
+                  Scraped{getSortIndicator('scraped_at')}
+                </th>
                 <th style={{ ...styles.th, width: 240 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {sources.length === 0 ? (
+              {sortedSources.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={styles.emptyCell}>
                     No sources found
                   </td>
                 </tr>
               ) : (
-                sources.map((source) => {
+                sortedSources.map((source) => {
                   const statusStyle = getStatusColor(source.status);
                   const typeStyle = getTypeColor(source.type);
                   const isProcessing = actionLoading === source.id;
@@ -471,9 +535,17 @@ export default function SourcesPage() {
                       </td>
                       <td style={styles.td}>
                         {source.relevance_score != null ? (
-                          <span style={styles.scoreBadge}>{source.relevance_score}</span>
+                          <span
+                            style={{
+                              ...styles.scoreBadge,
+                              backgroundColor: getScoreColor(source.relevance_score).bg,
+                              color: getScoreColor(source.relevance_score).color,
+                            }}
+                          >
+                            {source.relevance_score}
+                          </span>
                         ) : (
-                          '-'
+                          <span style={styles.noScore}>-</span>
                         )}
                       </td>
                       <td style={styles.td}>
@@ -729,6 +801,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderBottom: '1px solid #E5E7EB',
     backgroundColor: '#F9FAFB',
   },
+  sortableHeader: {
+    cursor: 'pointer',
+    userSelect: 'none',
+  },
   tr: {
     borderBottom: '1px solid #F3F4F6',
   },
@@ -776,8 +852,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: 4,
     fontSize: 12,
     fontWeight: 600,
-    backgroundColor: '#DBEAFE',
-    color: '#1E40AF',
+    minWidth: 32,
+    textAlign: 'center',
+  },
+  noScore: {
+    color: '#9CA3AF',
+    fontSize: 12,
   },
   actions: {
     display: 'flex',

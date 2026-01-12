@@ -382,7 +382,16 @@ export default function PipelinePage() {
         </div>
         {schedulerStatus?.next_run && (
           <p style={styles.nextRun}>
-            Next scheduled run: {new Date(schedulerStatus.next_run).toLocaleString()}
+            Next scheduled run:{' '}
+            <strong>
+              {new Date(schedulerStatus.next_run).toLocaleString('ko-KR', {
+                timeZone: 'Asia/Seoul',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })} KST
+            </strong>
           </p>
         )}
         <div style={styles.scheduleGrid}>
