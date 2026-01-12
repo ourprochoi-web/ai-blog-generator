@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api.routes import admin, articles, generate, scheduler, sources
+from backend.app.api.routes import activity_logs, admin, articles, generate, scheduler, sources
 from backend.app.config import settings
 from backend.app.scheduler.jobs import setup_scheduler, start_scheduler, stop_scheduler
 
@@ -79,6 +79,7 @@ app.include_router(articles.router, prefix=settings.API_V1_PREFIX, tags=["articl
 app.include_router(generate.router, prefix=settings.API_V1_PREFIX, tags=["generate"])
 app.include_router(scheduler.router, prefix=settings.API_V1_PREFIX, tags=["scheduler"])
 app.include_router(admin.router, prefix=settings.API_V1_PREFIX, tags=["admin"])
+app.include_router(activity_logs.router, prefix=settings.API_V1_PREFIX, tags=["activity-logs"])
 
 
 @app.get("/")

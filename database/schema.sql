@@ -154,3 +154,21 @@ CREATE TRIGGER update_articles_updated_at
 -- Example policy for public read access to published articles
 -- CREATE POLICY "Public can read published articles" ON articles
 --     FOR SELECT USING (status = 'published');
+
+-- =====================================================
+-- Activity Logs Table
+-- Stores pipeline activity logs for monitoring
+-- =====================================================
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type VARCHAR(20) NOT NULL CHECK (type IN ('scrape', 'evaluate', 'generate', 'pipeline')),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('running', 'success', 'error')),
+    message TEXT NOT NULL,
+    details JSONB DEFAULT '{}',  -- Additional context (counts, errors, etc.)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for activity_logs
+CREATE INDEX IF NOT EXISTS idx_activity_logs_type ON activity_logs(type);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_status ON activity_logs(status);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at DESC);

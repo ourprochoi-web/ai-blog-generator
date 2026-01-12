@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   triggerScraping,
   triggerGeneration,
   streamFullPipeline,
   getSchedulerStatus,
+  getRecentActivityLogs,
   type PipelineProgressEvent,
+  type ActivityLog,
 } from '@/lib/admin-api';
 
 interface LogEntry {
@@ -15,6 +17,7 @@ interface LogEntry {
   type: 'scrape' | 'generate' | 'evaluate' | 'pipeline';
   status: 'running' | 'success' | 'error';
   message: string;
+  details?: Record<string, unknown>;
 }
 
 interface PipelineStep {
@@ -31,6 +34,7 @@ export default function PipelinePage() {
   const [scrapeType, setScrapeType] = useState<'all' | 'news' | 'paper' | 'article'>('all');
   const [generateEdition, setGenerateEdition] = useState<'auto' | 'morning' | 'evening'>('auto');
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [schedulerStatus, setSchedulerStatus] = useState<{
     running: boolean;
     next_run: string | null;
@@ -42,16 +46,39 @@ export default function PipelinePage() {
   ]);
   const cleanupRef = useRef<(() => void) | null>(null);
 
+  // Load logs from database
+  const loadLogs = useCallback(async () => {
+    try {
+      setIsLoadingLogs(true);
+      const dbLogs = await getRecentActivityLogs(50);
+      // Convert ActivityLog to LogEntry format
+      const entries: LogEntry[] = dbLogs.map((log: ActivityLog) => ({
+        id: log.id,
+        timestamp: new Date(log.created_at).toLocaleTimeString(),
+        type: log.type,
+        status: log.status,
+        message: log.message,
+        details: log.details,
+      }));
+      setLogs(entries);
+    } catch {
+      // Failed to load logs, keep existing
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  }, []);
+
   useEffect(() => {
-    async function loadStatus() {
+    async function loadInitialData() {
       try {
         const status = await getSchedulerStatus();
         setSchedulerStatus(status);
       } catch {
         // Scheduler status not available
       }
+      await loadLogs();
     }
-    loadStatus();
+    loadInitialData();
 
     // Cleanup on unmount
     return () => {
@@ -59,7 +86,7 @@ export default function PipelinePage() {
         cleanupRef.current();
       }
     };
-  }, []);
+  }, [loadLogs]);
 
   const addLog = (type: 'scrape' | 'generate' | 'evaluate' | 'pipeline', status: 'running' | 'success' | 'error', message: string) => {
     const entry: LogEntry = {
@@ -105,11 +132,14 @@ export default function PipelinePage() {
         // Handle completion
         if (event.step === 'done' || event.step === 'error') {
           setIsRunningFull(false);
+          // Reload logs from database after pipeline completes
+          loadLogs();
         }
       },
       (error) => {
         addLog('pipeline', 'error', error.message);
         setIsRunningFull(false);
+        loadLogs();
       },
       () => {
         cleanupRef.current = null;
@@ -125,8 +155,10 @@ export default function PipelinePage() {
       const result = await triggerScraping(scrapeType === 'all' ? undefined : scrapeType);
 
       addLog('scrape', 'success', `Scraped ${result.sources_count} sources`);
+      await loadLogs(); // Reload logs from DB
     } catch (err) {
       addLog('scrape', 'error', err instanceof Error ? err.message : 'Scraping failed');
+      await loadLogs();
     } finally {
       setIsScraping(false);
     }
@@ -142,8 +174,10 @@ export default function PipelinePage() {
       );
 
       addLog('generate', 'success', `Generated ${result.articles_count} articles`);
+      await loadLogs(); // Reload logs from DB
     } catch (err) {
       addLog('generate', 'error', err instanceof Error ? err.message : 'Generation failed');
+      await loadLogs();
     } finally {
       setIsGenerating(false);
     }
@@ -367,18 +401,21 @@ export default function PipelinePage() {
       <div style={styles.logSection}>
         <div style={styles.logHeader}>
           <h3 style={styles.logTitle}>Activity Log</h3>
-          {logs.length > 0 && (
+          <div style={styles.logHeaderActions}>
             <button
-              onClick={() => setLogs([])}
-              style={styles.clearButton}
+              onClick={loadLogs}
+              disabled={isLoadingLogs}
+              style={styles.refreshButton}
             >
-              Clear
+              {isLoadingLogs ? 'Loading...' : 'Refresh'}
             </button>
-          )}
+          </div>
         </div>
 
         <div style={styles.logContainer}>
-          {logs.length === 0 ? (
+          {isLoadingLogs && logs.length === 0 ? (
+            <p style={styles.emptyLog}>Loading activity logs...</p>
+          ) : logs.length === 0 ? (
             <p style={styles.emptyLog}>No activity yet. Run a task to see logs here.</p>
           ) : (
             logs.map((log) => (
@@ -634,6 +671,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 16,
     fontWeight: 600,
     color: '#111827',
+  },
+  logHeaderActions: {
+    display: 'flex',
+    gap: 8,
+  },
+  refreshButton: {
+    padding: '6px 12px',
+    fontSize: 13,
+    color: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+    border: '1px solid #3B82F6',
+    borderRadius: 4,
+    cursor: 'pointer',
   },
   clearButton: {
     padding: '6px 12px',

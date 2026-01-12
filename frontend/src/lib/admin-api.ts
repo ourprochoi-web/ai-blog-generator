@@ -245,6 +245,19 @@ export async function triggerFullPipeline(): Promise<{ message: string }> {
   return { message: result.message };
 }
 
+// Evaluate pending sources
+export interface EvaluateResponse {
+  evaluated: number;
+  auto_selected: number;
+  errors: string[];
+}
+
+export async function evaluatePendingSources(): Promise<EvaluateResponse> {
+  return apiCall<EvaluateResponse>('/api/sources/evaluate/pending', {
+    method: 'POST',
+  });
+}
+
 // Pipeline progress event from SSE stream
 export interface PipelineProgressEvent {
   step: 'scrape' | 'evaluate' | 'generate' | 'done' | 'error';
@@ -315,6 +328,54 @@ export interface DashboardStats {
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   return apiCall<DashboardStats>('/api/admin/stats');
+}
+
+// Activity Logs API
+export interface ActivityLog {
+  id: string;
+  type: 'scrape' | 'evaluate' | 'generate' | 'pipeline';
+  status: 'running' | 'success' | 'error';
+  message: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ActivityLogListResponse {
+  items: ActivityLog[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export async function getActivityLogs(
+  page: number = 1,
+  pageSize: number = 50,
+  type?: string,
+  status?: string
+): Promise<ActivityLogListResponse> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  if (type) params.append('type', type);
+  if (status) params.append('status', status);
+
+  return apiCall<ActivityLogListResponse>(`/api/activity-logs?${params}`);
+}
+
+export async function getRecentActivityLogs(
+  limit: number = 50,
+  type?: string,
+  status?: string
+): Promise<ActivityLog[]> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+  });
+  if (type) params.append('type', type);
+  if (status) params.append('status', status);
+
+  return apiCall<ActivityLog[]>(`/api/activity-logs/recent?${params}`);
 }
 
 // Format helpers

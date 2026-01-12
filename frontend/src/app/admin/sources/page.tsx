@@ -10,6 +10,7 @@ import {
   deleteSource,
   scrapeUrl,
   generateArticle,
+  evaluatePendingSources,
   Source,
   Article,
   formatRelativeTime,
@@ -36,6 +37,13 @@ export default function SourcesPage() {
   const [showScrapeModal, setShowScrapeModal] = useState(false);
   const [scrapeUrl_, setScrapeUrl] = useState('');
   const [isScraping, setIsScraping] = useState(false);
+
+  // Evaluate state
+  const [isEvaluating, setIsEvaluating] = useState(false);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   // Source to Article mapping
   const [sourceArticleMap, setSourceArticleMap] = useState<Map<string, Article>>(new Map());
@@ -151,6 +159,97 @@ export default function SourcesPage() {
     }
   };
 
+  const handleEvaluate = async () => {
+    try {
+      setIsEvaluating(true);
+      const result = await evaluatePendingSources();
+      alert(
+        `Evaluation complete!\nEvaluated: ${result.evaluated}\nAuto-selected: ${result.auto_selected}${
+          result.errors.length > 0 ? `\nErrors: ${result.errors.length}` : ''
+        }`
+      );
+      await loadSources();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to evaluate sources');
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
+
+  // Bulk selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === sources.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sources.map((s) => s.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkSkip = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Skip ${selectedIds.size} selected sources?`)) return;
+
+    try {
+      setIsBulkProcessing(true);
+      const promises = Array.from(selectedIds).map((id) =>
+        updateSourceStatus(id, 'skipped')
+      );
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      await loadSources();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to skip sources');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} selected sources? This cannot be undone.`)) return;
+
+    try {
+      setIsBulkProcessing(true);
+      const promises = Array.from(selectedIds).map((id) => deleteSource(id));
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      await loadSources();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete sources');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleBulkRestore = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Restore ${selectedIds.size} selected sources to pending?`)) return;
+
+    try {
+      setIsBulkProcessing(true);
+      const promises = Array.from(selectedIds).map((id) =>
+        updateSourceStatus(id, 'pending')
+      );
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      await loadSources();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to restore sources');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
@@ -188,12 +287,21 @@ export default function SourcesPage() {
           <h1 style={styles.title}>Sources</h1>
           <p style={styles.subtitle}>{total} total sources</p>
         </div>
-        <button
-          onClick={() => setShowScrapeModal(true)}
-          style={styles.addButton}
-        >
-          + Scrape URL
-        </button>
+        <div style={styles.headerActions}>
+          <button
+            onClick={handleEvaluate}
+            disabled={isEvaluating}
+            style={styles.evaluateButton}
+          >
+            {isEvaluating ? 'Evaluating...' : 'Evaluate Pending'}
+          </button>
+          <button
+            onClick={() => setShowScrapeModal(true)}
+            style={styles.addButton}
+          >
+            + Scrape URL
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -248,12 +356,59 @@ export default function SourcesPage() {
         </div>
       )}
 
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div style={styles.bulkActionsBar}>
+          <span style={styles.bulkActionsText}>
+            {selectedIds.size} selected
+          </span>
+          <div style={styles.bulkActionsButtons}>
+            <button
+              onClick={handleBulkSkip}
+              disabled={isBulkProcessing}
+              style={styles.bulkSkipButton}
+            >
+              Skip Selected
+            </button>
+            <button
+              onClick={handleBulkRestore}
+              disabled={isBulkProcessing}
+              style={styles.bulkRestoreButton}
+            >
+              Restore Selected
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={isBulkProcessing}
+              style={styles.bulkDeleteButton}
+            >
+              Delete Selected
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              style={styles.bulkCancelButton}
+            >
+              Clear
+            </button>
+          </div>
+          {isBulkProcessing && <span style={styles.bulkProcessing}>Processing...</span>}
+        </div>
+      )}
+
       {/* Sources Table */}
       {!isLoading && !error && (
         <div style={styles.tableContainer}>
           <table style={styles.table}>
             <thead>
               <tr>
+                <th style={{ ...styles.th, width: 40 }}>
+                  <input
+                    type="checkbox"
+                    checked={sources.length > 0 && selectedIds.size === sources.length}
+                    onChange={toggleSelectAll}
+                    style={styles.checkbox}
+                  />
+                </th>
                 <th style={styles.th}>Title</th>
                 <th style={{ ...styles.th, width: 80 }}>Type</th>
                 <th style={{ ...styles.th, width: 100 }}>Status</th>
@@ -265,7 +420,7 @@ export default function SourcesPage() {
             <tbody>
               {sources.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={styles.emptyCell}>
+                  <td colSpan={7} style={styles.emptyCell}>
                     No sources found
                   </td>
                 </tr>
@@ -277,6 +432,14 @@ export default function SourcesPage() {
 
                   return (
                     <tr key={source.id} style={styles.tr}>
+                      <td style={styles.td}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(source.id)}
+                          onChange={() => toggleSelect(source.id)}
+                          style={styles.checkbox}
+                        />
+                      </td>
                       <td style={styles.td}>
                         <div style={styles.sourceTitle}>{source.title}</div>
                         <a
@@ -467,6 +630,20 @@ const styles: { [key: string]: React.CSSProperties } = {
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  headerActions: {
+    display: 'flex',
+    gap: 12,
+  },
+  evaluateButton: {
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 500,
+    color: 'white',
+    backgroundColor: '#F59E0B',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
   },
   addButton: {
     padding: '10px 20px',
@@ -750,5 +927,76 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: 'none',
     borderRadius: 6,
     cursor: 'pointer',
+  },
+  checkbox: {
+    width: 16,
+    height: 16,
+    cursor: 'pointer',
+  },
+  bulkActionsBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+    padding: '12px 20px',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    marginBottom: 16,
+    position: 'sticky' as const,
+    top: 0,
+    zIndex: 10,
+  },
+  bulkActionsText: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#1E40AF',
+  },
+  bulkActionsButtons: {
+    display: 'flex',
+    gap: 8,
+  },
+  bulkSkipButton: {
+    padding: '6px 14px',
+    fontSize: 13,
+    fontWeight: 500,
+    color: '#374151',
+    backgroundColor: 'white',
+    border: '1px solid #D1D5DB',
+    borderRadius: 4,
+    cursor: 'pointer',
+  },
+  bulkRestoreButton: {
+    padding: '6px 14px',
+    fontSize: 13,
+    fontWeight: 500,
+    color: '#3B82F6',
+    backgroundColor: 'white',
+    border: '1px solid #3B82F6',
+    borderRadius: 4,
+    cursor: 'pointer',
+  },
+  bulkDeleteButton: {
+    padding: '6px 14px',
+    fontSize: 13,
+    fontWeight: 500,
+    color: '#DC2626',
+    backgroundColor: 'white',
+    border: '1px solid #DC2626',
+    borderRadius: 4,
+    cursor: 'pointer',
+  },
+  bulkCancelButton: {
+    padding: '6px 14px',
+    fontSize: 13,
+    fontWeight: 500,
+    color: '#6B7280',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: 4,
+    cursor: 'pointer',
+  },
+  bulkProcessing: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 'auto',
   },
 };

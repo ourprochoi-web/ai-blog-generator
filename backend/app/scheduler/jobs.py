@@ -14,8 +14,10 @@ from slugify import slugify
 
 from backend.app.config import SCRAPE_SOURCES, settings
 from backend.app.db.database import get_supabase_client
+from backend.app.db.repositories.activity_log_repo import ActivityLogRepository
 from backend.app.db.repositories.article_repo import ArticleRepository
 from backend.app.db.repositories.source_repo import SourceRepository
+from backend.app.models.activity_log import ActivityStatus, ActivityType
 from backend.app.models.article import ArticleEdition
 from backend.app.models.source import SourceStatus
 from backend.app.services.generators.blog_writer import BlogWriter
@@ -53,6 +55,14 @@ async def scrape_all_sources() -> dict:
     logger.info("Starting scheduled scrape job")
     client = get_supabase_client()
     source_repo = SourceRepository(client)
+    activity_log_repo = ActivityLogRepository(client)
+
+    # Log start
+    await activity_log_repo.create(
+        ActivityType.SCRAPE,
+        ActivityStatus.RUNNING,
+        "Starting scrape job",
+    )
 
     results = {
         "rss_scraped": 0,
@@ -146,6 +156,22 @@ async def scrape_all_sources() -> dict:
         f"Scrape job completed: {results['rss_scraped']} RSS, "
         f"{results['arxiv_scraped']} arXiv, {results['duplicates_skipped']} skipped"
     )
+
+    # Log completion
+    total_scraped = results["rss_scraped"] + results["arxiv_scraped"]
+    status = ActivityStatus.SUCCESS if not results["errors"] else ActivityStatus.ERROR
+    await activity_log_repo.create(
+        ActivityType.SCRAPE,
+        status,
+        f"Scraped {total_scraped} sources ({results['rss_scraped']} RSS, {results['arxiv_scraped']} arXiv)",
+        details={
+            "rss_scraped": results["rss_scraped"],
+            "arxiv_scraped": results["arxiv_scraped"],
+            "duplicates_skipped": results["duplicates_skipped"],
+            "errors": results["errors"][:5] if results["errors"] else [],  # Limit errors
+        },
+    )
+
     return results
 
 
@@ -159,7 +185,15 @@ async def evaluate_pending_sources() -> dict:
     logger.info("Starting source evaluation job")
     client = get_supabase_client()
     source_repo = SourceRepository(client)
+    activity_log_repo = ActivityLogRepository(client)
     evaluator = SourceEvaluator()
+
+    # Log start
+    await activity_log_repo.create(
+        ActivityType.EVALUATE,
+        ActivityStatus.RUNNING,
+        "Starting source evaluation",
+    )
 
     results = {
         "evaluated": 0,
@@ -207,6 +241,20 @@ async def evaluate_pending_sources() -> dict:
         f"Evaluation job completed: {results['evaluated']} evaluated, "
         f"{results['auto_selected']} auto-selected"
     )
+
+    # Log completion
+    status = ActivityStatus.SUCCESS if not results["errors"] else ActivityStatus.ERROR
+    await activity_log_repo.create(
+        ActivityType.EVALUATE,
+        status,
+        f"Evaluated {results['evaluated']} sources, {results['auto_selected']} auto-selected",
+        details={
+            "evaluated": results["evaluated"],
+            "auto_selected": results["auto_selected"],
+            "errors": results["errors"][:5] if results["errors"] else [],
+        },
+    )
+
     return results
 
 
@@ -240,6 +288,14 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
     client = get_supabase_client()
     source_repo = SourceRepository(client)
     article_repo = ArticleRepository(client)
+    activity_log_repo = ActivityLogRepository(client)
+
+    # Log start
+    await activity_log_repo.create(
+        ActivityType.GENERATE,
+        ActivityStatus.RUNNING,
+        "Starting article generation",
+    )
 
     # Initialize writer with optional image generation
     image_generator = None
@@ -384,6 +440,21 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
             )
 
     logger.info(f"Generation job completed: {results['generated']} articles generated")
+
+    # Log completion
+    status = ActivityStatus.SUCCESS if not results["errors"] else ActivityStatus.ERROR
+    await activity_log_repo.create(
+        ActivityType.GENERATE,
+        status,
+        f"Generated {results['generated']} articles ({current_edition.value} edition)",
+        details={
+            "generated": results["generated"],
+            "skipped_existing": results["skipped_existing"],
+            "edition": results["edition"],
+            "errors": results["errors"][:5] if results["errors"] else [],
+        },
+    )
+
     return results
 
 
@@ -401,8 +472,18 @@ async def run_full_pipeline() -> dict:
         logger.warning("Pipeline already running, skipping this execution")
         return {"skipped": True, "reason": "Pipeline already running"}
 
+    client = get_supabase_client()
+    activity_log_repo = ActivityLogRepository(client)
+
     async with _pipeline_lock:
         logger.info("Starting full pipeline job")
+
+        # Log pipeline start
+        await activity_log_repo.create(
+            ActivityType.PIPELINE,
+            ActivityStatus.RUNNING,
+            "Starting full pipeline (scrape → evaluate → generate)",
+        )
 
         results = {
             "scrape": {},
@@ -420,9 +501,28 @@ async def run_full_pipeline() -> dict:
             # Step 3: Generate articles from selected sources
             results["generate"] = await generate_articles_from_selected()
 
+            # Log pipeline success
+            await activity_log_repo.create(
+                ActivityType.PIPELINE,
+                ActivityStatus.SUCCESS,
+                "Full pipeline completed successfully",
+                details={
+                    "scraped": results["scrape"].get("rss_scraped", 0) + results["scrape"].get("arxiv_scraped", 0),
+                    "evaluated": results["evaluate"].get("evaluated", 0),
+                    "generated": results["generate"].get("generated", 0),
+                },
+            )
+
         except Exception as e:
             logger.error(f"Pipeline error: {str(e)}")
             results["error"] = str(e)
+
+            # Log pipeline error
+            await activity_log_repo.create(
+                ActivityType.PIPELINE,
+                ActivityStatus.ERROR,
+                f"Pipeline failed: {str(e)}",
+            )
 
         logger.info("Full pipeline completed")
         return results
