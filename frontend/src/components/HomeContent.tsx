@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
+import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AIInsightBox from '@/components/AIInsightBox';
@@ -180,7 +181,26 @@ function HomeContentInner({
               }}
             >
               <p style={{ fontSize: 18, marginBottom: 8 }}>No stories in this edition yet</p>
-              <p style={{ fontSize: 14 }}>Check back later or switch to {otherEdition} edition</p>
+              <p style={{ fontSize: 14, marginBottom: 16 }}>Check back later or switch to {otherEdition} edition</p>
+              {hasYesterday && (
+                <Link
+                  href={`/date/${yesterday}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 20px',
+                    backgroundColor: '#1a1a1a',
+                    color: '#fff',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: 500,
+                    textDecoration: 'none',
+                  }}
+                >
+                  View yesterday&apos;s stories
+                </Link>
+              )}
             </div>
           )}
 

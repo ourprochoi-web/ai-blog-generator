@@ -51,6 +51,7 @@ class ArticleUpdate(BaseModel):
     references: Optional[List[ReferenceSchema]] = None
     meta_description: Optional[str] = Field(None, max_length=160)
     og_image_url: Optional[str] = Field(None, max_length=500)
+    edition: Optional[ArticleEdition] = None  # morning or evening
 
 
 class ArticleStatusUpdate(BaseModel):
