@@ -247,9 +247,13 @@ export async function triggerFullPipeline(): Promise<{ message: string }> {
 
 // Evaluate pending sources
 export interface EvaluateResponse {
-  evaluated: number;
-  auto_selected: number;
-  errors: string[];
+  evaluations: Array<{
+    source_id: string;
+    relevance_score: number;
+    suggested_topic: string;
+    reason: string;
+  }>;
+  evaluated_count: number;
 }
 
 export async function evaluatePendingSources(): Promise<EvaluateResponse> {

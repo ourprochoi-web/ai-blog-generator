@@ -163,11 +163,7 @@ export default function SourcesPage() {
     try {
       setIsEvaluating(true);
       const result = await evaluatePendingSources();
-      alert(
-        `Evaluation complete!\nEvaluated: ${result.evaluated}\nAuto-selected: ${result.auto_selected}${
-          result.errors.length > 0 ? `\nErrors: ${result.errors.length}` : ''
-        }`
-      );
+      alert(`Evaluation complete!\nEvaluated: ${result.evaluated_count} sources`);
       await loadSources();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to evaluate sources');
