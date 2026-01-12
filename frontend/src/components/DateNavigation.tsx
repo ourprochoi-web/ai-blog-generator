@@ -24,13 +24,24 @@ function formatDisplayDate(dateStr: string): string {
   }
 }
 
+function isToday(dateStr: string): boolean {
+  const date = new Date(dateStr + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date.getTime() === today.getTime();
+}
+
 export default function DateNavigation({
   currentDate,
   previousDate,
   nextDate,
   archiveDates = [],
 }: DateNavigationProps) {
-  const isToday = formatDisplayDate(currentDate) === 'Today';
+  const currentIsToday = isToday(currentDate);
+
+  // If viewing yesterday or older, always show "Today →" on the right
+  const todayStr = new Date().toISOString().split('T')[0];
+  const showTodayLink = !currentIsToday;
 
   return (
     <div
@@ -76,10 +87,25 @@ export default function DateNavigation({
         {formatDisplayDate(currentDate)}
       </div>
 
-      {/* Next */}
-      {nextDate && !isToday ? (
+      {/* Next / Today */}
+      {showTodayLink ? (
         <Link
-          href={nextDate === new Date().toISOString().split('T')[0] ? '/' : `/date/${nextDate}`}
+          href="/"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '14px',
+            color: '#6B7280',
+            textDecoration: 'none',
+          }}
+        >
+          <span>Today</span>
+          <span>→</span>
+        </Link>
+      ) : nextDate ? (
+        <Link
+          href={`/date/${nextDate}`}
           style={{
             display: 'flex',
             alignItems: 'center',
