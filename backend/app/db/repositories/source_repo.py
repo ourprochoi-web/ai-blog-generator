@@ -265,14 +265,14 @@ class SourceRepository(BaseRepository):
         self,
         limit: int = 10,
     ) -> List[Dict[str, Any]]:
-        """Get selected sources ready for blog generation, ordered by priority."""
+        """Get selected sources ready for blog generation, ordered by relevance_score (highest first)."""
         response = (
             self._query()
             .select("*")
             .eq("is_selected", True)
             .eq("status", SourceStatus.SELECTED.value)
+            .order("relevance_score", desc=True, nullslast=True)
             .order("priority", desc=True)
-            .order("relevance_score", desc=True)
             .limit(limit)
             .execute()
         )

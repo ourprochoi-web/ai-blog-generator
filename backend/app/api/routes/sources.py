@@ -12,6 +12,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, HttpUrl
 
+from datetime import datetime
+
+from backend.app.config import settings
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.source_repo import SourceRepository
 from backend.app.models.source import SourceStatus, SourceType
@@ -589,12 +592,23 @@ async def evaluate_sources_batch(
     try:
         evaluations = await evaluator.evaluate_sources_batch(sources)
 
-        # Update relevance scores in database
+        # Update relevance scores and auto-select high-scoring sources
         for eval_result in evaluations:
             source_id = eval_result.get("source_id")
             score = eval_result.get("relevance_score", 50)
             if source_id:
-                await repo.update_relevance_score(source_id, score)
+                update_data = {
+                    "relevance_score": score,
+                    "reviewed_at": datetime.utcnow().isoformat(),
+                }
+
+                # Auto-select if score meets threshold
+                if score >= settings.AUTO_GENERATE_MIN_SCORE:
+                    update_data["is_selected"] = True
+                    update_data["status"] = SourceStatus.SELECTED.value
+                    update_data["selection_note"] = f"Auto-selected: score {score}"
+
+                await repo.update(source_id, update_data)
 
         return BulkEvaluationResponse(
             evaluations=evaluations,
@@ -624,12 +638,23 @@ async def evaluate_pending_sources(
     try:
         evaluations = await evaluator.evaluate_sources_batch(sources)
 
-        # Update relevance scores in database
+        # Update relevance scores and auto-select high-scoring sources
         for eval_result in evaluations:
             source_id = eval_result.get("source_id")
             score = eval_result.get("relevance_score", 50)
             if source_id:
-                await repo.update_relevance_score(source_id, score)
+                update_data = {
+                    "relevance_score": score,
+                    "reviewed_at": datetime.utcnow().isoformat(),
+                }
+
+                # Auto-select if score meets threshold
+                if score >= settings.AUTO_GENERATE_MIN_SCORE:
+                    update_data["is_selected"] = True
+                    update_data["status"] = SourceStatus.SELECTED.value
+                    update_data["selection_note"] = f"Auto-selected: score {score}"
+
+                await repo.update(source_id, update_data)
 
         return BulkEvaluationResponse(
             evaluations=evaluations,
