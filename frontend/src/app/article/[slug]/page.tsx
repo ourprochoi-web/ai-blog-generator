@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -9,18 +10,29 @@ import { Metadata } from 'next';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://aidailybrief.com';
 
 // Generate metadata for SEO
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   try {
-    const article = await getArticleBySlug(params.slug);
+    const { slug } = await params;
+    const article = await getArticleBySlug(slug);
 
-    const description = article.meta_description || article.subtitle || article.content.substring(0, 160).replace(/[#*\n]/g, '').trim() + '...';
+    const description =
+      article.meta_description ||
+      article.subtitle ||
+      article.content
+        .substring(0, 160)
+        .replace(/[#*\n]/g, '')
+        .trim() + '...';
     const ogImage = article.og_image_url || `${SITE_URL}/og-image.png`;
     const articleUrl = `${SITE_URL}/article/${article.slug}`;
 
     return {
       title: article.title,
       description,
-      keywords: article.tags.map(tag => tag.replace('#', '')),
+      keywords: article.tags.map((tag) => tag.replace('#', '')),
       authors: [{ name: 'AI Daily Brief' }],
       openGraph: {
         type: 'article',
@@ -30,7 +42,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
         siteName: 'AI Daily Brief',
         publishedTime: article.published_at || article.created_at,
         modifiedTime: article.updated_at,
-        tags: article.tags.map(tag => tag.replace('#', '')),
+        tags: article.tags.map((tag) => tag.replace('#', '')),
         images: [
           {
             url: ogImage,
@@ -106,14 +118,15 @@ For now, the message is clear: the tools available to solve hard problems just g
 };
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export default async function ArticlePage({ params }: PageProps) {
+  const { slug } = await params;
   let article: Article = sampleArticle;
 
   try {
-    article = await getArticleBySlug(params.slug);
+    article = await getArticleBySlug(slug);
   } catch (error) {
     // Use sample data if API fails
     console.log('Using sample article');
@@ -122,6 +135,10 @@ export default async function ArticlePage({ params }: PageProps) {
   const category = article.tags[0]?.replace('#', '') || 'AI News';
   const date = formatDate(article.created_at);
   const readTime = calculateReadTime(article.word_count);
+
+  // Edition info
+  const editionIcon = article.edition === 'morning' ? '☀️' : '🌙';
+  const editionLabel = article.edition === 'morning' ? 'Morning' : 'Evening';
 
   // Category style
   const getCategoryStyle = (cat: string) => {
@@ -141,7 +158,13 @@ export default async function ArticlePage({ params }: PageProps) {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: article.title,
-    description: article.meta_description || article.subtitle || article.content.substring(0, 160).replace(/[#*\n]/g, '').trim(),
+    description:
+      article.meta_description ||
+      article.subtitle ||
+      article.content
+        .substring(0, 160)
+        .replace(/[#*\n]/g, '')
+        .trim(),
     image: article.og_image_url || `${SITE_URL}/og-image.png`,
     datePublished: article.published_at || article.created_at,
     dateModified: article.updated_at,
@@ -163,7 +186,7 @@ export default async function ArticlePage({ params }: PageProps) {
       '@type': 'WebPage',
       '@id': `${SITE_URL}/article/${article.slug}`,
     },
-    keywords: article.tags.map(tag => tag.replace('#', '')).join(', '),
+    keywords: article.tags.map((tag) => tag.replace('#', '')).join(', '),
     wordCount: article.word_count,
     articleSection: category,
   };
@@ -171,11 +194,10 @@ export default async function ArticlePage({ params }: PageProps) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* JSON-LD for SEO */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <Header />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <Suspense fallback={<div style={{ height: 73 }} />}>
+        <Header initialEdition={article.edition || 'morning'} />
+      </Suspense>
 
       <main style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
         <div
@@ -187,7 +209,7 @@ export default async function ArticlePage({ params }: PageProps) {
         >
           {/* Back Button */}
           <Link
-            href="/"
+            href={`/?edition=${article.edition || 'morning'}`}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -198,7 +220,7 @@ export default async function ArticlePage({ params }: PageProps) {
               marginBottom: '32px',
             }}
           >
-            <span>←</span> Back to all stories
+            <span>←</span> Back to {editionLabel} Edition
           </Link>
 
           {/* Article Header */}
@@ -209,6 +231,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 alignItems: 'center',
                 gap: '12px',
                 marginBottom: '20px',
+                flexWrap: 'wrap',
               }}
             >
               <span
@@ -225,6 +248,20 @@ export default async function ArticlePage({ params }: PageProps) {
               >
                 {category}
               </span>
+              {article.edition && (
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '13px',
+                    color: '#6B7280',
+                  }}
+                >
+                  {editionIcon} {editionLabel}
+                </span>
+              )}
+              <span style={{ color: '#D1D5DB' }}>·</span>
               <span
                 style={{
                   fontSize: '13px',
@@ -371,6 +408,9 @@ export default async function ArticlePage({ params }: PageProps) {
                     >
                       {ref.title}
                     </a>
+                    {ref.verified && (
+                      <span style={{ marginLeft: 8, fontSize: 11, color: '#059669' }}>✓ Verified</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -389,7 +429,7 @@ export default async function ArticlePage({ params }: PageProps) {
             }}
           >
             <Link
-              href="/"
+              href={`/?edition=${article.edition || 'morning'}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -403,7 +443,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 textDecoration: 'none',
               }}
             >
-              <span>←</span> All stories
+              <span>←</span> {editionLabel} Edition
             </Link>
 
             <button

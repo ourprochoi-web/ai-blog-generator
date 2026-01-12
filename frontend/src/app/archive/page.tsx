@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -78,7 +79,9 @@ export default async function ArchivePage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header />
+      <Suspense fallback={<div style={{ height: 73 }} />}>
+        <Header />
+      </Suspense>
 
       <main style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
         <div

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -15,7 +16,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 
 interface PageProps {
-  params: { date: string };
+  params: Promise<{ date: string }>;
 }
 
 function formatDisplayDate(dateStr: string): string {
@@ -29,7 +30,7 @@ function formatDisplayDate(dateStr: string): string {
 }
 
 export default async function DatePage({ params }: PageProps) {
-  const { date } = params;
+  const { date } = await params;
 
   let articles: Article[] = [];
   let archiveDates: string[] = [];
@@ -75,7 +76,9 @@ export default async function DatePage({ params }: PageProps) {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header />
+      <Suspense fallback={<div style={{ height: 73 }} />}>
+        <Header />
+      </Suspense>
 
       <main style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
         <div

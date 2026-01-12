@@ -1,10 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function Header() {
-  const [edition, setEdition] = useState<'morning' | 'evening'>('morning');
+interface HeaderProps {
+  initialEdition?: 'morning' | 'evening';
+}
+
+export default function Header({ initialEdition }: HeaderProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Get edition from URL or use initial edition
+  const edition = (searchParams.get('edition') as 'morning' | 'evening') || initialEdition || 'morning';
+
+  const handleEditionChange = (newEdition: 'morning' | 'evening') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('edition', newEdition);
+    router.push(`/?${params.toString()}`, { scroll: false });
+  };
 
   return (
     <header
@@ -87,7 +101,7 @@ export default function Header() {
           }}
         >
           <button
-            onClick={() => setEdition('morning')}
+            onClick={() => handleEditionChange('morning')}
             style={{
               padding: '8px 16px',
               backgroundColor: edition === 'morning' ? '#1a1a1a' : 'transparent',
@@ -99,12 +113,14 @@ export default function Header() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
             }}
           >
             <span>☀️</span> Morning
           </button>
           <button
-            onClick={() => setEdition('evening')}
+            onClick={() => handleEditionChange('evening')}
             style={{
               padding: '8px 16px',
               backgroundColor: edition === 'evening' ? '#1a1a1a' : 'transparent',
@@ -116,6 +132,8 @@ export default function Header() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
             }}
           >
             <span>🌙</span> Evening
@@ -144,6 +162,7 @@ export default function Header() {
               borderRadius: '8px',
               fontSize: '14px',
               fontWeight: '500',
+              cursor: 'pointer',
             }}
           >
             Subscribe

@@ -1,14 +1,9 @@
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import AIInsightBox from '@/components/AIInsightBox';
-import NewsletterCTA from '@/components/NewsletterCTA';
-import DateNavigation from '@/components/DateNavigation';
-import EditionSection from '@/components/EditionSection';
+import HomeContent from '@/components/HomeContent';
 import {
   getPublishedArticles,
   getSourceStats,
   getArchiveDates,
-  getEditionOrder,
+  getCurrentEdition,
   Article,
 } from '@/lib/api';
 
@@ -21,7 +16,7 @@ const sampleArticles: Article[] = [
     subtitle:
       'A breakthrough that could reshape how we approach complex scientific problems — and why it matters for everyone.',
     slug: 'openai-reasoning-model-breakthrough',
-    content: '',
+    content: '## Introduction\n\nThis is sample content for the article...',
     tags: ['#Breakthrough', '#AI', '#OpenAI'],
     references: [],
     word_count: 1600,
@@ -43,7 +38,7 @@ const sampleArticles: Article[] = [
     subtitle:
       'With enhanced multimodal capabilities and improved reasoning, Google fires back in the AI arms race.',
     slug: 'google-deepmind-gemini-25',
-    content: '',
+    content: '## Introduction\n\nThis is sample content...',
     tags: ['#Industry', '#Google', '#AI'],
     references: [],
     word_count: 1000,
@@ -65,7 +60,7 @@ const sampleArticles: Article[] = [
     subtitle:
       "The world's first comprehensive AI regulation is now law. Here's how it affects you.",
     slug: 'eu-ai-act-takes-effect',
-    content: '',
+    content: '## Introduction\n\nThis is sample content...',
     tags: ['#Regulation', '#Policy', '#AI'],
     references: [],
     word_count: 1200,
@@ -82,14 +77,19 @@ const sampleArticles: Article[] = [
   },
 ];
 
-export default async function HomePage() {
+interface HomePageProps {
+  searchParams: Promise<{ edition?: string }>;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = await searchParams;
   let articles: Article[] = sampleArticles;
   let sourceStats = { total: 0, by_type: { news: 0, paper: 0, article: 0 }, today_count: 0 };
   let archiveDates: string[] = [];
 
   try {
     const [articlesResponse, statsResponse, archiveResponse] = await Promise.all([
-      getPublishedArticles(1, 20),
+      getPublishedArticles(1, 50),
       getSourceStats().catch(() => sourceStats),
       getArchiveDates().catch(() => ({ dates: [] })),
     ]);
@@ -109,8 +109,10 @@ export default async function HomePage() {
   const eveningArticles = articles.filter((a) => a.edition === 'evening');
   const noEditionArticles = articles.filter((a) => !a.edition);
 
-  // Get edition order based on current time
-  const [latestEdition, previousEdition] = getEditionOrder();
+  // Determine initial edition from URL or current time
+  const urlEdition = params.edition as 'morning' | 'evening' | undefined;
+  const currentEdition = getCurrentEdition();
+  const initialEdition = urlEdition || currentEdition;
 
   // Get today's date for navigation
   const today = new Date().toISOString().split('T')[0];
@@ -118,94 +120,16 @@ export default async function HomePage() {
   const hasYesterday = archiveDates.includes(yesterday);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header />
-
-      <main
-        style={{
-          flex: 1,
-          backgroundColor: '#FAFAF9',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: '720px',
-            margin: '0 auto',
-            padding: '48px 24px',
-          }}
-        >
-          {/* Date Navigation */}
-          {hasYesterday && (
-            <DateNavigation
-              currentDate={today}
-              previousDate={yesterday}
-              archiveDates={archiveDates}
-            />
-          )}
-
-          {/* AI Insight Box */}
-          <AIInsightBox
-            totalSources={sourceStats.total}
-            newsSources={sourceStats.by_type.news}
-            paperSources={sourceStats.by_type.paper}
-            articleSources={sourceStats.by_type.article}
-            storiesSelected={articles.length}
-          />
-
-          {/* Edition Sections - Latest first, previous collapsible */}
-          {latestEdition === 'morning' ? (
-            <>
-              <EditionSection
-                edition="morning"
-                articles={morningArticles}
-                isLatest={true}
-              />
-              {eveningArticles.length > 0 && (
-                <>
-                  <div style={{ height: '1px', backgroundColor: '#E5E7EB', margin: '48px 0 24px 0' }} />
-                  <EditionSection
-                    edition="evening"
-                    articles={eveningArticles}
-                    isLatest={false}
-                  />
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <EditionSection
-                edition="evening"
-                articles={eveningArticles}
-                isLatest={true}
-              />
-              {morningArticles.length > 0 && (
-                <>
-                  <div style={{ height: '1px', backgroundColor: '#E5E7EB', margin: '48px 0 24px 0' }} />
-                  <EditionSection
-                    edition="morning"
-                    articles={morningArticles}
-                    isLatest={false}
-                  />
-                </>
-              )}
-            </>
-          )}
-
-          {/* No edition articles (fallback) */}
-          {noEditionArticles.length > 0 && morningArticles.length === 0 && eveningArticles.length === 0 && (
-            <EditionSection
-              edition="morning"
-              articles={noEditionArticles}
-              isLatest={true}
-            />
-          )}
-
-          {/* Newsletter CTA */}
-          <NewsletterCTA />
-        </div>
-      </main>
-
-      <Footer />
-    </div>
+    <HomeContent
+      morningArticles={morningArticles}
+      eveningArticles={eveningArticles}
+      noEditionArticles={noEditionArticles}
+      sourceStats={sourceStats}
+      archiveDates={archiveDates}
+      initialEdition={initialEdition}
+      today={today}
+      yesterday={yesterday}
+      hasYesterday={hasYesterday}
+    />
   );
 }
