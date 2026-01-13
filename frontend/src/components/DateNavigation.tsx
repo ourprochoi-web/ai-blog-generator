@@ -56,7 +56,7 @@ export default function DateNavigation({
         border: '1px solid #E5E7EB',
       }}
     >
-      {/* Previous */}
+      {/* Previous / Archive */}
       {previousDate ? (
         <Link
           href={`/date/${previousDate}`}
@@ -73,7 +73,20 @@ export default function DateNavigation({
           <span>{formatDisplayDate(previousDate)}</span>
         </Link>
       ) : (
-        <div style={{ width: '80px' }} />
+        <Link
+          href="/archive"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '14px',
+            color: '#9CA3AF',
+            textDecoration: 'none',
+          }}
+        >
+          <span>📚</span>
+          <span>Archive</span>
+        </Link>
       )}
 
       {/* Current */}

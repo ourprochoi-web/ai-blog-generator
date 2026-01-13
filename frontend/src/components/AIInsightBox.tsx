@@ -4,7 +4,21 @@ interface AIInsightBoxProps {
   paperSources?: number;
   articleSources?: number;
   storiesSelected?: number;
+  edition: 'morning' | 'evening';
 }
+
+const EDITION_HEADLINES = {
+  morning: {
+    main: "Start your day informed.",
+    sub: "Here's what happened in AI overnight.",
+    icon: "🌅",
+  },
+  evening: {
+    main: "End your day with clarity.",
+    sub: "The AI stories that matter.",
+    icon: "🌙",
+  },
+};
 
 export default function AIInsightBox({
   totalSources = 0,
@@ -12,8 +26,10 @@ export default function AIInsightBox({
   paperSources = 0,
   articleSources = 0,
   storiesSelected = 1,
+  edition,
 }: AIInsightBoxProps) {
   const hasStats = totalSources > 0;
+  const headline = EDITION_HEADLINES[edition];
 
   return (
     <div
@@ -37,7 +53,7 @@ export default function AIInsightBox({
             width: '48px',
             height: '48px',
             borderRadius: '12px',
-            backgroundColor: '#E0E7FF',
+            backgroundColor: edition === 'morning' ? '#FEF3C7' : '#E0E7FF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -45,23 +61,29 @@ export default function AIInsightBox({
             flexShrink: 0,
           }}
         >
-          🤖
+          {headline.icon}
         </div>
         <div style={{ flex: 1 }}>
           <p
             style={{
-              fontSize: '15px',
-              lineHeight: '1.6',
+              fontSize: '17px',
+              lineHeight: '1.5',
               margin: 0,
-              color: '#374151',
+              color: '#1a1a1a',
+              fontWeight: '500',
             }}
           >
-            Good morning! I scanned{' '}
-            <strong style={{ color: '#1a1a1a' }}>
-              {hasStats ? totalSources.toLocaleString() : '...'} sources
-            </strong>{' '}
-            and selected today&apos;s most important AI {storiesSelected === 1 ? 'story' : 'stories'}. Here&apos;s what
-            matters.
+            {headline.main}
+          </p>
+          <p
+            style={{
+              fontSize: '15px',
+              lineHeight: '1.5',
+              margin: '4px 0 0 0',
+              color: '#4B5563',
+            }}
+          >
+            {headline.sub}
           </p>
           {hasStats && (
             <div

@@ -118,6 +118,7 @@ export default async function DatePage({ params }: PageProps) {
             paperSources={sourceStats.by_type.paper}
             articleSources={sourceStats.by_type.article}
             storiesSelected={articles.length}
+            edition="morning"
           />
 
           {/* No articles message */}
