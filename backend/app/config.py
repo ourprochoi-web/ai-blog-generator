@@ -58,6 +58,7 @@ SCRAPE_SOURCES = {
     ],
     # RSS 피드
     "rss_feeds": [
+        # 기존 피드
         {
             "name": "TechCrunch AI",
             "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
@@ -67,7 +68,7 @@ SCRAPE_SOURCES = {
             "url": "https://venturebeat.com/category/ai/feed/",
         },
         {
-            "name": "MIT Technology Review AI",
+            "name": "MIT Technology Review",
             "url": "https://www.technologyreview.com/feed/",
         },
         {
@@ -77,6 +78,43 @@ SCRAPE_SOURCES = {
         {
             "name": "OpenAI Blog",
             "url": "https://openai.com/blog/rss.xml",
+        },
+        # 새로 추가된 피드
+        {
+            "name": "The Verge AI",
+            "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+        },
+        {
+            "name": "Wired AI",
+            "url": "https://www.wired.com/feed/tag/ai/latest/rss",
+        },
+        {
+            "name": "Ars Technica",
+            "url": "https://feeds.arstechnica.com/arstechnica/technology-lab",
+        },
+        {
+            "name": "AI News",
+            "url": "https://www.artificialintelligence-news.com/feed/",
+        },
+        {
+            "name": "Towards Data Science",
+            "url": "https://towardsdatascience.com/feed",
+        },
+        {
+            "name": "Hugging Face Blog",
+            "url": "https://huggingface.co/blog/feed.xml",
+        },
+        {
+            "name": "DeepMind Blog",
+            "url": "https://www.deepmind.com/blog/rss.xml",
+        },
+        {
+            "name": "NVIDIA Blog",
+            "url": "https://blogs.nvidia.com/feed/",
+        },
+        {
+            "name": "Microsoft AI News",
+            "url": "https://news.microsoft.com/source/topics/ai/feed/",
         },
     ],
 }
