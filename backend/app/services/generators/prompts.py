@@ -151,10 +151,19 @@ Return your article in the following JSON format:
     "title": "Your engaging article title",
     "subtitle": "Compelling subtitle under 140 characters",
     "content": "Full markdown content of the article...",
-    "tags": ["Tag1", "Tag2", "Tag3", "Tag4", "Tag5"],
+    "tags": ["Category", "Tag2", "Tag3", "Tag4", "Tag5"],
     "meta_description": "SEO description under 160 characters"
 }}
 ```
+
+**IMPORTANT - Tag Requirements**:
+- The FIRST tag MUST be exactly one of these 4 categories: "Breakthrough", "Industry", "Research", "Regulation"
+  - **Breakthrough**: Major technological advances, new capabilities, record-breaking achievements
+  - **Industry**: Company news, product launches, business developments, market trends
+  - **Research**: Academic papers, scientific studies, technical analysis, methodologies
+  - **Regulation**: Policy changes, government actions, legal matters, compliance, ethics
+- Choose the category that BEST fits the primary focus of the article
+- The remaining 4 tags should be descriptive keywords about the content
 
 **CRITICAL JSON FORMATTING RULES**:
 - The content field must be a valid JSON string
