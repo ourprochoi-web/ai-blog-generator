@@ -626,6 +626,79 @@ async def run_full_pipeline_with_progress() -> AsyncGenerator[Dict[str, Any], No
         logger.info("Full pipeline with progress completed")
 
 
+async def check_and_run_missed_schedule() -> Optional[dict]:
+    """
+    Check if we missed a scheduled run and execute if needed.
+
+    This handles cases where the app was down during scheduled time.
+    Checks activity_logs to see if pipeline ran recently.
+
+    Returns:
+        Pipeline results if run, None otherwise
+    """
+    logger.info("Checking for missed scheduled runs...")
+
+    client = get_supabase_client()
+    activity_log_repo = ActivityLogRepository(client)
+
+    utc_now = datetime.utcnow()
+    kst_hour = (utc_now.hour + 9) % 24
+
+    # Determine which edition we should have run
+    # Morning: 8 AM KST (23:00 UTC prev day)
+    # Evening: 8 PM KST (11:00 UTC)
+
+    # Check if we're within the "catch-up window" (within 2 hours of scheduled time)
+    morning_window = kst_hour >= 8 and kst_hour < 10  # 8-10 AM KST
+    evening_window = kst_hour >= 20 and kst_hour < 22  # 8-10 PM KST
+
+    if not (morning_window or evening_window):
+        logger.info("Not within catch-up window, skipping missed schedule check")
+        return None
+
+    edition = ArticleEdition.MORNING if morning_window else ArticleEdition.EVENING
+
+    # Check if pipeline already ran for this edition today
+    today_start = utc_now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # For morning edition, check from previous day 23:00 UTC
+    if edition == ArticleEdition.MORNING:
+        check_from = today_start - timedelta(hours=1)  # 23:00 UTC previous day
+    else:
+        check_from = today_start + timedelta(hours=11)  # 11:00 UTC today
+
+    # Look for recent pipeline runs
+    recent_logs = await activity_log_repo.get_recent(
+        activity_type=ActivityType.PIPELINE,
+        since=check_from,
+        limit=5,
+    )
+
+    # Check if any successful pipeline run exists
+    pipeline_ran = any(
+        log.get("status") in [ActivityStatus.SUCCESS.value, ActivityStatus.RUNNING.value]
+        for log in recent_logs
+    )
+
+    if pipeline_ran:
+        logger.info(f"Pipeline already ran for {edition.value} edition, skipping")
+        return None
+
+    logger.info(f"Missed {edition.value} edition pipeline detected! Running now...")
+
+    # Log that we're running a catch-up
+    await activity_log_repo.create(
+        ActivityType.PIPELINE,
+        ActivityStatus.RUNNING,
+        f"Running missed {edition.value} edition pipeline (catch-up)",
+    )
+
+    # Run the pipeline
+    result = await run_full_pipeline()
+
+    return result
+
+
 def setup_scheduler() -> AsyncIOScheduler:
     """
     Set up the APScheduler with configured jobs.

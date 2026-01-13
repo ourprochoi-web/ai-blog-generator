@@ -8,7 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.routes import activity_logs, admin, articles, generate, scheduler, sources
 from backend.app.config import settings
-from backend.app.scheduler.jobs import setup_scheduler, start_scheduler, stop_scheduler
+from backend.app.scheduler.jobs import (
+    check_and_run_missed_schedule,
+    setup_scheduler,
+    start_scheduler,
+    stop_scheduler,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -44,6 +49,14 @@ async def lifespan(app: FastAPI):
     setup_scheduler()
     start_scheduler()
     logger.info("Scheduler started: runs at 8 AM and 8 PM KST")
+
+    # Check for missed scheduled runs (handles app restart during scheduled time)
+    try:
+        result = await check_and_run_missed_schedule()
+        if result:
+            logger.info(f"Catch-up pipeline completed: {result.get('generate', {}).get('generated', 0)} articles generated")
+    except Exception as e:
+        logger.error(f"Error checking missed schedule: {e}")
 
     yield
 

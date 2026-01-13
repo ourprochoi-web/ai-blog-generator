@@ -45,14 +45,23 @@ class ActivityLogRepository:
         limit: int = 50,
         type_filter: Optional[str] = None,
         status_filter: Optional[str] = None,
+        activity_type: Optional[ActivityType] = None,
+        since: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         """Get recent activity logs."""
         query = self._query().select("*")
 
-        if type_filter:
+        # Support both type_filter (str) and activity_type (enum)
+        if activity_type:
+            query = query.eq("type", activity_type.value)
+        elif type_filter:
             query = query.eq("type", type_filter)
+
         if status_filter:
             query = query.eq("status", status_filter)
+
+        if since:
+            query = query.gte("created_at", since.isoformat())
 
         response = query.order("created_at", desc=True).limit(limit).execute()
         return response.data or []
