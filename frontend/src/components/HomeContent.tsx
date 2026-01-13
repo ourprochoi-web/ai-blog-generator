@@ -32,7 +32,7 @@ interface HomeContentProps {
 
 // Helper to get category from tags
 function getCategory(tags: string[]): string {
-  const validCategories = ['Breakthrough', 'Industry', 'Regulation', 'Research'];
+  const validCategories = ['Innovation', 'Business', 'Analysis', 'Research'];
   for (const tag of tags) {
     const cleanTag = tag.replace('#', '');
     if (validCategories.includes(cleanTag)) {
@@ -167,10 +167,10 @@ function HomeContentInner({
         }}
       >
         <div
+          className="main-content"
           style={{
             maxWidth: '1000px',
             margin: '0 auto',
-            padding: '48px 24px',
           }}
         >
           {/* Date Navigation - Always show */}
@@ -192,22 +192,19 @@ function HomeContentInner({
 
           {/* Edition Header */}
           <div
+            className="edition-header"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
               marginBottom: 16,
               paddingBottom: 16,
               borderBottom: '2px solid #1a1a1a',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 28 }}>{editionIcon}</span>
+              <span className="edition-header-icon">{editionIcon}</span>
               <div>
                 <h2
-                  className="font-serif"
+                  className="font-serif edition-header-title"
                   style={{
-                    fontSize: 24,
                     fontWeight: 600,
                     color: '#1a1a1a',
                     margin: 0,
@@ -297,13 +294,7 @@ function HomeContentInner({
                     More stories
                   </h3>
 
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(2, 1fr)',
-                      gap: '24px',
-                    }}
-                  >
+                  <div className="articles-grid">
                     {otherDisplayArticles.map((article) => (
                       <ArticleCard
                         key={article.id}

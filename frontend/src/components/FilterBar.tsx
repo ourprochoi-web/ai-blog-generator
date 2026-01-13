@@ -13,10 +13,10 @@ interface FilterBarProps {
 
 const CATEGORIES = [
   { id: null, label: 'All' },
-  { id: 'Breakthrough', label: 'Breakthrough', bg: '#FEF3C7', color: '#92400E' },
-  { id: 'Industry', label: 'Industry', bg: '#DBEAFE', color: '#1E40AF' },
+  { id: 'Innovation', label: 'Innovation', bg: '#FEF3C7', color: '#92400E' },
+  { id: 'Business', label: 'Business', bg: '#DBEAFE', color: '#1E40AF' },
   { id: 'Research', label: 'Research', bg: '#D1FAE5', color: '#065F46' },
-  { id: 'Regulation', label: 'Regulation', bg: '#FCE7F3', color: '#9D174D' },
+  { id: 'Analysis', label: 'Analysis', bg: '#FCE7F3', color: '#9D174D' },
 ];
 
 export default function FilterBar({
@@ -43,7 +43,7 @@ export default function FilterBar({
       }}
     >
       {/* Category Pills */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      <div className="filter-bar">
         {CATEGORIES.map((cat) => {
           const isActive = activeCategory === cat.id;
           return (

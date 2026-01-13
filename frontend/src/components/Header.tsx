@@ -31,13 +31,11 @@ export default function Header({ initialEdition }: HeaderProps) {
       }}
     >
       <div
+        className="header-container"
         style={{
           maxWidth: '1200px',
           margin: '0 auto',
           padding: '16px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
         }}
       >
         {/* Logo */}
@@ -64,7 +62,7 @@ export default function Header({ initialEdition }: HeaderProps) {
           >
             ⚡
           </div>
-          <div>
+          <div className="header-logo-text">
             <h1
               className="font-serif"
               style={{
@@ -91,59 +89,36 @@ export default function Header({ initialEdition }: HeaderProps) {
         </Link>
 
         {/* Edition Toggle */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '4px',
-            padding: '4px',
-            backgroundColor: '#F5F5F4',
-            borderRadius: '24px',
-          }}
-        >
+        <div className="edition-toggle">
           <button
+            className="edition-toggle-btn"
             onClick={() => handleEditionChange('morning')}
             style={{
-              padding: '8px 16px',
               backgroundColor: edition === 'morning' ? '#1a1a1a' : 'transparent',
               color: edition === 'morning' ? '#fff' : '#666',
-              border: 'none',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
             }}
           >
-            <span>☀️</span> Morning
+            <span>☀️</span>
+            <span className="edition-toggle-text">Morning</span>
           </button>
           <button
+            className="edition-toggle-btn"
             onClick={() => handleEditionChange('evening')}
             style={{
-              padding: '8px 16px',
               backgroundColor: edition === 'evening' ? '#1a1a1a' : 'transparent',
               color: edition === 'evening' ? '#fff' : '#666',
-              border: 'none',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
             }}
           >
-            <span>🌙</span> Evening
+            <span>🌙</span>
+            <span className="edition-toggle-text">Evening</span>
           </button>
         </div>
 
         {/* Right side: Archive + Subscribe */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="header-right">
           <Link
             href="/archive"
+            className="header-archive"
             style={{
               fontSize: '14px',
               color: '#6B7280',
@@ -154,6 +129,7 @@ export default function Header({ initialEdition }: HeaderProps) {
             Archive
           </Link>
           <button
+            className="header-subscribe"
             style={{
               padding: '10px 20px',
               backgroundColor: '#1a1a1a',

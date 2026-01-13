@@ -157,11 +157,11 @@ Return your article in the following JSON format:
 ```
 
 **IMPORTANT - Tag Requirements**:
-- The FIRST tag MUST be exactly one of these 4 categories: "Breakthrough", "Industry", "Research", "Regulation"
-  - **Breakthrough**: Major technological advances, new capabilities, record-breaking achievements
-  - **Industry**: Company news, product launches, business developments, market trends
+- The FIRST tag MUST be exactly one of these 4 categories: "Innovation", "Business", "Research", "Analysis"
+  - **Innovation**: New technologies, breakthroughs, cutting-edge developments, technical achievements
+  - **Business**: Company news, product launches, partnerships, funding, market trends
   - **Research**: Academic papers, scientific studies, technical analysis, methodologies
-  - **Regulation**: Policy changes, government actions, legal matters, compliance, ethics
+  - **Analysis**: Insights, opinion pieces, future predictions, deep dives, explainers
 - Choose the category that BEST fits the primary focus of the article
 - The remaining 4 tags should be descriptive keywords about the content
 

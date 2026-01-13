@@ -459,29 +459,32 @@ async def assign_categories_to_articles(
 ):
     """Assign category tags to existing articles based on their content."""
     CATEGORY_KEYWORDS = {
-        "Breakthrough": [
+        "Innovation": [
             "breakthrough", "first", "new record", "achieves", "surpasses",
             "revolutionary", "unprecedented", "milestone", "landmark", "beats",
-            "outperforms", "state-of-the-art", "sota", "world's first"
+            "outperforms", "state-of-the-art", "sota", "world's first", "new",
+            "cutting-edge", "next-gen", "advanced", "novel"
         ],
-        "Industry": [
+        "Business": [
             "company", "startup", "funding", "acquisition", "launch", "release",
             "product", "service", "business", "market", "commercial", "enterprise",
-            "announces", "unveils", "partnership", "collaboration", "deal"
+            "announces", "unveils", "partnership", "collaboration", "deal",
+            "openai", "google", "meta", "microsoft", "anthropic", "apple"
         ],
         "Research": [
             "study", "paper", "research", "arxiv", "journal", "scientists",
-            "researchers", "methodology", "experiment", "findings", "analysis",
+            "researchers", "methodology", "experiment", "findings",
             "theoretical", "empirical", "dataset", "benchmark", "evaluate"
         ],
-        "Regulation": [
-            "regulation", "policy", "law", "government", "compliance", "ethics",
-            "privacy", "safety", "ban", "restrict", "legal", "court", "ruling",
-            "legislation", "act", "bill", "guideline", "framework", "oversight"
+        "Analysis": [
+            "analysis", "insight", "deep dive", "explainer", "opinion",
+            "future", "prediction", "trend", "impact", "implications",
+            "understanding", "unpacking", "inside", "how", "why", "what"
         ],
     }
 
-    VALID_CATEGORIES = ["Breakthrough", "Industry", "Research", "Regulation"]
+    VALID_CATEGORIES = ["Innovation", "Business", "Research", "Analysis"]
+    OLD_CATEGORIES = ["Breakthrough", "Industry", "Regulation"]  # Categories to replace
 
     client = get_supabase_client()
     response = client.table("articles").select("*").execute()
@@ -496,9 +499,12 @@ async def assign_categories_to_articles(
         subtitle = article.get("subtitle", "").lower() if article.get("subtitle") else ""
         tags = article.get("tags", [])
 
-        # Check if already has a valid category as first tag
+        # Check if already has a NEW valid category as first tag (skip if already updated)
         if tags and tags[0] in VALID_CATEGORIES:
-            continue  # Already has category
+            continue  # Already has new category
+
+        # Remove old category tags if present
+        tags = [t for t in tags if t not in OLD_CATEGORIES]
 
         # Determine category from keywords
         combined_text = f"{title} {subtitle}"
@@ -509,10 +515,10 @@ async def assign_categories_to_articles(
                 if keyword in combined_text:
                     category_scores[category] += 1
 
-        # Get category with highest score, default to "Industry"
+        # Get category with highest score, default to "Business"
         best_category = max(category_scores, key=category_scores.get)
         if category_scores[best_category] == 0:
-            best_category = "Industry"  # Default
+            best_category = "Business"  # Default
 
         # Insert category as first tag
         new_tags = [best_category] + [t for t in tags if t not in VALID_CATEGORIES]

@@ -20,9 +20,9 @@ function getCategory(tags: string[]): string {
 // Category color mapping
 function getCategoryStyle(category: string): { bg: string; color: string } {
   const categoryMap: Record<string, { bg: string; color: string }> = {
-    Breakthrough: { bg: '#FEF3C7', color: '#92400E' },
-    Industry: { bg: '#DBEAFE', color: '#1E40AF' },
-    Regulation: { bg: '#FCE7F3', color: '#9D174D' },
+    Innovation: { bg: '#FEF3C7', color: '#92400E' },
+    Business: { bg: '#DBEAFE', color: '#1E40AF' },
+    Analysis: { bg: '#FCE7F3', color: '#9D174D' },
     Research: { bg: '#D1FAE5', color: '#065F46' },
     Default: { bg: '#F3F4F6', color: '#374151' },
   };
@@ -45,6 +45,7 @@ export default function ArticleCard({
   if (variant === 'medium') {
     return (
       <article
+        className="article-card-medium"
         style={{
           backgroundColor: '#fff',
           borderRadius: '12px',
@@ -60,9 +61,9 @@ export default function ArticleCard({
         {article.og_image_url && (
           <Link href={`/article/${article.slug}`}>
             <div
+              className="article-card-image"
               style={{
                 width: '100%',
-                height: '160px',
                 backgroundColor: '#F3F4F6',
                 overflow: 'hidden',
               }}
@@ -225,9 +226,8 @@ export default function ArticleCard({
         <Link href={`/article/${article.slug}`} style={{ textDecoration: 'none' }}>
           {/* Title */}
           <h2
-            className="font-serif"
+            className="font-serif featured-title"
             style={{
-              fontSize: '36px',
               fontWeight: '400',
               lineHeight: '1.25',
               marginBottom: '16px',
@@ -241,8 +241,8 @@ export default function ArticleCard({
           {/* Subtitle */}
           {article.subtitle && (
             <p
+              className="featured-subtitle"
               style={{
-                fontSize: '18px',
                 color: '#4B5563',
                 lineHeight: '1.6',
                 margin: 0,
