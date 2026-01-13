@@ -271,7 +271,7 @@ class SourceRepository(BaseRepository):
             .select("*")
             .eq("is_selected", True)
             .eq("status", SourceStatus.SELECTED.value)
-            .order("relevance_score", desc=True, nullslast=True)
+            .order("relevance_score", desc=True)
             .order("priority", desc=True)
             .limit(limit)
             .execute()
