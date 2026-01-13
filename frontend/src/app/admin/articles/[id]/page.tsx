@@ -36,6 +36,7 @@ export default function ArticleEditorPage() {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
+  const [edition, setEdition] = useState<'morning' | 'evening' | ''>('');
 
   // Markdown editor ref
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -90,6 +91,7 @@ export default function ArticleEditorPage() {
         setContent(data.content);
         setTags(data.tags?.join(', ') || '');
         setMetaDescription(data.meta_description || '');
+        setEdition(data.edition || '');
 
         // Load source if article has source_id
         if (data.source_id) {
@@ -124,6 +126,7 @@ export default function ArticleEditorPage() {
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
         meta_description: metaDescription || null,
         og_image_url: article.og_image_url,
+        edition: edition || undefined,
       });
 
       setArticle(updatedArticle);
@@ -259,6 +262,17 @@ export default function ArticleEditorPage() {
               >
                 {article.status}
               </span>
+              {article.edition && (
+                <span
+                  style={{
+                    ...styles.editionBadge,
+                    backgroundColor: article.edition === 'morning' ? '#FEF3C7' : '#E0E7FF',
+                    color: article.edition === 'morning' ? '#92400E' : '#3730A3',
+                  }}
+                >
+                  {article.edition === 'morning' ? '🌅 Morning' : '🌙 Evening'}
+                </span>
+              )}
               <span style={styles.metaText}>
                 Created {formatDate(article.created_at)}
               </span>
@@ -457,6 +471,20 @@ export default function ArticleEditorPage() {
             <span style={styles.charCount}>{metaDescription.length}/160</span>
           </div>
 
+          {/* Edition */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Edition</label>
+            <select
+              value={edition}
+              onChange={(e) => setEdition(e.target.value as 'morning' | 'evening' | '')}
+              style={styles.select}
+            >
+              <option value="">-- Select Edition --</option>
+              <option value="morning">🌅 Morning Edition</option>
+              <option value="evening">🌙 Evening Edition</option>
+            </select>
+          </div>
+
           {/* Content with Markdown Toolbar */}
           <div style={styles.formGroup}>
             <div style={styles.editorHeader}>
@@ -628,6 +656,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 12,
     fontWeight: 500,
     textTransform: 'capitalize',
+  },
+  editionBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    borderRadius: 4,
+    fontSize: 12,
+    fontWeight: 500,
   },
   metaText: {
     fontSize: 13,
@@ -816,6 +851,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: '1px solid #D1D5DB',
     borderRadius: 8,
     outline: 'none',
+  },
+  select: {
+    width: '100%',
+    padding: '12px 16px',
+    fontSize: 16,
+    border: '1px solid #D1D5DB',
+    borderRadius: 8,
+    outline: 'none',
+    backgroundColor: 'white',
+    cursor: 'pointer',
   },
   charCount: {
     fontSize: 12,
