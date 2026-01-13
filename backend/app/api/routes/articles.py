@@ -453,6 +453,88 @@ async def get_article_versions(
     return {"article_id": str(article_id), "versions": versions}
 
 
+@router.post("/assign-categories")
+async def assign_categories_to_articles(
+    repo: ArticleRepository = Depends(get_article_repo),
+):
+    """Assign category tags to existing articles based on their content."""
+    CATEGORY_KEYWORDS = {
+        "Breakthrough": [
+            "breakthrough", "first", "new record", "achieves", "surpasses",
+            "revolutionary", "unprecedented", "milestone", "landmark", "beats",
+            "outperforms", "state-of-the-art", "sota", "world's first"
+        ],
+        "Industry": [
+            "company", "startup", "funding", "acquisition", "launch", "release",
+            "product", "service", "business", "market", "commercial", "enterprise",
+            "announces", "unveils", "partnership", "collaboration", "deal"
+        ],
+        "Research": [
+            "study", "paper", "research", "arxiv", "journal", "scientists",
+            "researchers", "methodology", "experiment", "findings", "analysis",
+            "theoretical", "empirical", "dataset", "benchmark", "evaluate"
+        ],
+        "Regulation": [
+            "regulation", "policy", "law", "government", "compliance", "ethics",
+            "privacy", "safety", "ban", "restrict", "legal", "court", "ruling",
+            "legislation", "act", "bill", "guideline", "framework", "oversight"
+        ],
+    }
+
+    VALID_CATEGORIES = ["Breakthrough", "Industry", "Research", "Regulation"]
+
+    client = get_supabase_client()
+    response = client.table("articles").select("*").execute()
+    articles = response.data
+
+    updated_count = 0
+    updated_articles = []
+
+    for article in articles:
+        article_id = article.get("id")
+        title = article.get("title", "").lower()
+        subtitle = article.get("subtitle", "").lower() if article.get("subtitle") else ""
+        tags = article.get("tags", [])
+
+        # Check if already has a valid category as first tag
+        if tags and tags[0] in VALID_CATEGORIES:
+            continue  # Already has category
+
+        # Determine category from keywords
+        combined_text = f"{title} {subtitle}"
+        category_scores = {cat: 0 for cat in VALID_CATEGORIES}
+
+        for category, keywords in CATEGORY_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in combined_text:
+                    category_scores[category] += 1
+
+        # Get category with highest score, default to "Industry"
+        best_category = max(category_scores, key=category_scores.get)
+        if category_scores[best_category] == 0:
+            best_category = "Industry"  # Default
+
+        # Insert category as first tag
+        new_tags = [best_category] + [t for t in tags if t not in VALID_CATEGORIES]
+
+        # Update article
+        await repo.update(article_id, {"tags": new_tags})
+        updated_articles.append({
+            "id": article_id,
+            "title": article.get("title"),
+            "category": best_category,
+            "old_tags": tags,
+            "new_tags": new_tags,
+        })
+        updated_count += 1
+
+    return {
+        "updated_count": updated_count,
+        "total_articles": len(articles),
+        "updated_articles": updated_articles,
+    }
+
+
 @router.post("/{article_id}/regenerate-image")
 async def regenerate_article_image(
     article_id: UUID,

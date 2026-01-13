@@ -1,6 +1,6 @@
 import HomeContent from '@/components/HomeContent';
 import {
-  getPublishedArticles,
+  getArticlesByDate,
   getSourceStats,
   getArchiveDates,
   getCurrentEdition,
@@ -87,9 +87,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   let sourceStats = { total: 0, by_type: { news: 0, paper: 0, article: 0 }, today_count: 0 };
   let archiveDates: string[] = [];
 
+  // Get today's date
+  const today = new Date().toISOString().split('T')[0];
+
   try {
     const [articlesResponse, statsResponse, archiveResponse] = await Promise.all([
-      getPublishedArticles(1, 50),
+      getArticlesByDate(today),
       getSourceStats().catch(() => sourceStats),
       getArchiveDates().catch(() => ({ dates: [] })),
     ]);
@@ -114,8 +117,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const currentEdition = getCurrentEdition();
   const initialEdition = urlEdition || currentEdition;
 
-  // Get today's date for navigation
-  const today = new Date().toISOString().split('T')[0];
+  // Get yesterday for navigation
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   const hasYesterday = archiveDates.includes(yesterday);
 
