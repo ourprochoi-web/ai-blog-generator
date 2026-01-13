@@ -116,17 +116,29 @@ class BlogWriter:
             metadata=metadata,
         )
 
-        # Generate article using LLM
+        # Generate article using LLM with retry logic
         # Use high max_tokens for long articles (15k-20k chars need ~20k+ tokens)
-        response = await self.llm.generate(
-            prompt=prompt,
-            system_prompt=PromptTemplates.SYSTEM_PROMPT,
-            temperature=0.7,
-            max_tokens=32000,
-        )
+        max_retries = 2
+        last_error = None
 
-        # Parse the JSON response
-        article_data = self._parse_article_response(response.content)
+        for attempt in range(max_retries + 1):
+            response = await self.llm.generate(
+                prompt=prompt,
+                system_prompt=PromptTemplates.SYSTEM_PROMPT,
+                temperature=0.7 if attempt == 0 else 0.5,  # Lower temp on retry
+                max_tokens=32000,
+            )
+
+            try:
+                # Parse the JSON response
+                article_data = self._parse_article_response(response.content)
+                break  # Success, exit retry loop
+            except ValueError as e:
+                last_error = e
+                if attempt < max_retries:
+                    logger.warning(f"JSON parse failed (attempt {attempt + 1}/{max_retries + 1}), retrying...")
+                else:
+                    raise last_error
 
         # Extract references from content (if any URLs were included)
         references = self._extract_references(article_data.get("content", ""))
@@ -215,11 +227,14 @@ class BlogWriter:
             except json.JSONDecodeError as e:
                 logger.warning(f"JSON decode error: {e}")
 
-        # No valid JSON found - raise error instead of saving garbage
-        logger.error(f"Failed to parse article JSON. Response starts with: {response_text[:200]}")
+        # No valid JSON found - log full response for debugging
+        logger.error(f"Failed to parse article JSON. Response length: {len(response_text)}")
+        logger.error(f"Response starts with: {response_text[:500]}")
+        logger.error(f"Response ends with: {response_text[-500:]}")
         raise ValueError(
             f"Failed to parse LLM response as valid article JSON. "
-            f"Response length: {len(response_text)} chars"
+            f"Response length: {len(response_text)} chars. "
+            f"Response preview: {response_text[:200]}..."
         )
 
     def _clean_content_field(self, content: str) -> str:
