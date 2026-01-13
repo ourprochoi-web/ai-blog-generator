@@ -12,7 +12,8 @@ from slugify import slugify
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.article_repo import ArticleRepository
 from backend.app.db.repositories.source_repo import SourceRepository
-from backend.app.models.article import ArticleStatus
+from backend.app.models.article import ArticleEdition, ArticleStatus
+from backend.app.scheduler.jobs import get_current_edition
 from backend.app.models.source import SourceStatus
 from backend.app.schemas.article import ArticlePreviewResponse, ArticleResponse
 from backend.app.services.generators.blog_writer import BlogWriter
@@ -133,6 +134,9 @@ async def generate_article(
             content_with_source += f"\n\n---\n\n## References\n\n"
             content_with_source += f"- [{source_label}: {source_title}]({source_url})"
 
+        # Determine current edition based on time
+        current_edition = get_current_edition()
+
         # Prepare article data
         article_data = {
             "source_id": str(request.source_id),
@@ -145,6 +149,7 @@ async def generate_article(
             "word_count": generated.word_count,
             "char_count": generated.char_count,
             "status": ArticleStatus.DRAFT.value,
+            "edition": current_edition.value,
             "meta_description": meta_desc,
             "llm_model": generated.llm_model,
             "generation_time_seconds": generated.generation_time_seconds,
