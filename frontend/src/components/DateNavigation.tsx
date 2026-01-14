@@ -7,47 +7,28 @@ interface DateNavigationProps {
   archiveDates?: string[];
 }
 
-// Get today's date in KST (Korea Standard Time, UTC+9)
-function getTodayKST(): Date {
-  const now = new Date();
-  const kstOffset = 9 * 60; // KST is UTC+9
-  const kstTime = new Date(now.getTime() + (kstOffset + now.getTimezoneOffset()) * 60 * 1000);
-  kstTime.setHours(0, 0, 0, 0);
-  return kstTime;
+// Get today's date string in UTC (YYYY-MM-DD)
+function getTodayUTC(): string {
+  return new Date().toISOString().split('T')[0];
 }
 
 function formatDisplayDate(dateStr: string): string {
-  // Parse date as KST midnight
-  const date = new Date(dateStr + 'T00:00:00+09:00');
-  date.setHours(0, 0, 0, 0);
+  const todayStr = getTodayUTC();
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-  const today = getTodayKST();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  // Compare just the date parts
-  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-
-  if (dateOnly.getTime() === todayOnly.getTime()) {
+  if (dateStr === todayStr) {
     return 'Today';
-  } else if (dateOnly.getTime() === yesterdayOnly.getTime()) {
+  } else if (dateStr === yesterdayStr) {
     return 'Yesterday';
   } else {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Parse as UTC date for display
+    const date = new Date(dateStr + 'T00:00:00Z');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   }
 }
 
 function isToday(dateStr: string): boolean {
-  const date = new Date(dateStr + 'T00:00:00+09:00');
-  const today = getTodayKST();
-
-  return (
-    date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate()
-  );
+  return dateStr === getTodayUTC();
 }
 
 export default function DateNavigation({
