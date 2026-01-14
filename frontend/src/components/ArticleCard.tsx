@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { Article, formatDate, calculateReadTime } from '@/lib/api';
 
@@ -41,20 +44,28 @@ export default function ArticleCard({
   const readTime = calculateReadTime(article.word_count);
   const date = formatDate(article.created_at);
 
+  const [isHovered, setIsHovered] = useState(false);
+
   // Medium card variant for magazine grid
   if (variant === 'medium') {
     return (
       <article
         className="article-card-medium"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         style={{
           backgroundColor: '#fff',
-          borderRadius: '12px',
+          borderRadius: '16px',
           border: '1px solid #E5E7EB',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           height: '100%',
-          transition: 'box-shadow 0.15s ease',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+          boxShadow: isHovered
+            ? '0 20px 40px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.08)'
+            : '0 1px 3px rgba(0, 0, 0, 0.05)',
         }}
       >
         {/* Image */}
@@ -66,6 +77,7 @@ export default function ArticleCard({
                 width: '100%',
                 backgroundColor: '#F3F4F6',
                 overflow: 'hidden',
+                position: 'relative',
               }}
             >
               <img
@@ -75,6 +87,21 @@ export default function ArticleCard({
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
+                  transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+                }}
+              />
+              {/* Gradient overlay on hover */}
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: '60px',
+                  background: 'linear-gradient(transparent, rgba(0,0,0,0.1))',
+                  opacity: isHovered ? 1 : 0,
+                  transition: 'opacity 0.3s ease',
                 }}
               />
             </div>

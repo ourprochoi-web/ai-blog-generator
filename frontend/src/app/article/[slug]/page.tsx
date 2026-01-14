@@ -6,6 +6,8 @@ import { getArticleBySlug, formatDate, calculateReadTime, Article } from '@/lib/
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Metadata } from 'next';
+import ShareButtons from '@/components/ShareButtons';
+import ReadingProgress from '@/components/ReadingProgress';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://aidailybrief.com';
 
@@ -191,8 +193,13 @@ export default async function ArticlePage({ params }: PageProps) {
     articleSection: category,
   };
 
+  const shareUrl = `${SITE_URL}/article/${article.slug}`;
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Reading Progress Bar */}
+      <ReadingProgress />
+
       {/* JSON-LD for SEO */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <Suspense fallback={<div style={{ height: 73 }} />}>
@@ -446,19 +453,7 @@ export default async function ArticlePage({ params }: PageProps) {
               <span>←</span> {editionLabel} Edition
             </Link>
 
-            <button
-              style={{
-                padding: '10px 16px',
-                backgroundColor: '#1a1a1a',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                cursor: 'pointer',
-              }}
-            >
-              Share
-            </button>
+            <ShareButtons url={shareUrl} title={article.title} />
           </div>
         </div>
       </main>
