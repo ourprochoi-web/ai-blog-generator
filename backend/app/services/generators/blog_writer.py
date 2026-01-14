@@ -206,12 +206,16 @@ class BlogWriter:
 
         # Try each JSON block (prefer later ones as they're usually the final answer)
         for i, parsed in enumerate(reversed(json_objects)):
-            logger.info(f"Trying JSON block {i}, title: {parsed.get('title', 'NO TITLE')[:50] if isinstance(parsed, dict) else 'NOT DICT'}")
+            title_preview = parsed.get('title', 'NO TITLE')[:50] if isinstance(parsed, dict) else 'NOT DICT'
+            content_len = len(parsed.get('content', '')) if isinstance(parsed, dict) else 0
+            logger.info(f"Trying JSON block {i}, title: {title_preview}, content_len: {content_len}")
             # Handle nested JSON - if content itself contains ```json, parse it
             parsed = self._unwrap_nested_json(parsed)
             if self._is_valid_article(parsed):
                 logger.info(f"Successfully parsed article: {parsed.get('title', '')[:50]}")
                 return parsed
+            else:
+                logger.warning(f"JSON block {i} not valid article")
 
         # If no valid JSON in code blocks, try to extract JSON object directly
         # Find balanced braces for JSON object
@@ -226,6 +230,13 @@ class BlogWriter:
                     return parsed
             except json.JSONDecodeError as e:
                 logger.warning(f"JSON decode error: {e}")
+
+        # Try to recover truncated JSON
+        logger.info("Attempting to recover truncated JSON...")
+        recovered = self._recover_truncated_json(response_text)
+        if recovered and self._is_valid_article(recovered):
+            logger.info(f"Successfully recovered truncated article: {recovered.get('title', '')[:50]}")
+            return recovered
 
         # No valid JSON found - log full response for debugging
         logger.error(f"Failed to parse article JSON. Response length: {len(response_text)}")
@@ -270,25 +281,38 @@ class BlogWriter:
         search_start = 0
 
         while True:
-            # Find next ```json marker
-            code_block_start = text.find("```json", search_start)
+            # Find next ```json marker (case insensitive, allow whitespace)
+            # Try multiple patterns
+            code_block_start = -1
+            for marker in ["```json", "``` json", "```JSON"]:
+                pos = text.find(marker, search_start)
+                if pos != -1 and (code_block_start == -1 or pos < code_block_start):
+                    code_block_start = pos
+
             if code_block_start == -1:
                 break
+
+            logger.debug(f"Found code block marker at position {code_block_start}")
 
             # Find the start of the JSON object after ```json
             json_start = text.find("{", code_block_start)
             if json_start == -1:
+                logger.debug("No opening brace found after code block marker")
                 break
 
             # Extract JSON using brace-matching
             json_str = self._extract_json_object(text[json_start:])
             if json_str:
+                logger.debug(f"Extracted JSON string of length {len(json_str)}")
                 try:
                     parsed = json.loads(json_str)
                     if isinstance(parsed, dict):
                         results.append(parsed)
-                except json.JSONDecodeError:
-                    pass
+                        logger.debug(f"Successfully parsed JSON with keys: {list(parsed.keys())[:5]}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"JSON decode error in code block: {e}")
+            else:
+                logger.debug("Failed to extract JSON object with brace matching")
 
             # Move search position forward
             search_start = json_start + len(json_str) if json_str else code_block_start + 7
@@ -338,13 +362,121 @@ class BlogWriter:
 
     def _is_valid_article(self, data: Dict[str, Any]) -> bool:
         """Check if parsed data has required article fields."""
-        return (
-            isinstance(data, dict)
-            and "title" in data
-            and "content" in data
-            and isinstance(data.get("content"), str)
-            and len(data.get("content", "")) > 100  # Meaningful content
-        )
+        if not isinstance(data, dict):
+            logger.debug(f"Invalid article: not a dict, got {type(data)}")
+            return False
+        if "title" not in data:
+            logger.debug(f"Invalid article: missing 'title' key. Keys: {list(data.keys())[:10]}")
+            return False
+        if "content" not in data:
+            logger.debug(f"Invalid article: missing 'content' key. Keys: {list(data.keys())[:10]}")
+            return False
+        content = data.get("content")
+        if not isinstance(content, str):
+            logger.debug(f"Invalid article: content is not string, got {type(content)}")
+            return False
+        if len(content) < 100:
+            logger.debug(f"Invalid article: content too short ({len(content)} chars). Content preview: {content[:200]}")
+            return False
+        return True
+
+    def _recover_truncated_json(self, text: str) -> Optional[Dict[str, Any]]:
+        """
+        Attempt to recover a truncated JSON response.
+
+        When Gemini truncates output, the JSON is often cut in the middle of content.
+        This tries to find and close the JSON properly.
+        """
+        # Find the start of JSON
+        json_start = text.find("{")
+        if json_start == -1:
+            return None
+
+        # Get the JSON portion
+        json_text = text[json_start:]
+
+        # Try to find where we have valid fields and truncate content there
+        # Look for common patterns that indicate content field
+        try:
+            # First, try to extract just the fields we have
+            # Find title, subtitle, content fields using regex
+            title_match = re.search(r'"title"\s*:\s*"([^"]*)"', json_text)
+            subtitle_match = re.search(r'"subtitle"\s*:\s*"([^"]*)"', json_text)
+
+            # For content, it might be very long and truncated
+            content_match = re.search(r'"content"\s*:\s*"', json_text)
+
+            if title_match and content_match:
+                title = title_match.group(1)
+                subtitle = subtitle_match.group(1) if subtitle_match else ""
+
+                # Extract content - find where it starts and try to get as much as possible
+                content_start = content_match.end()
+
+                # Find the content by looking for the closing quote
+                # Content is tricky because it contains escaped quotes
+                content = self._extract_string_value(json_text[content_start - 1:])
+
+                if content and len(content) > 100:
+                    logger.info(f"Recovered JSON with title: {title[:50]}, content length: {len(content)}")
+
+                    # Try to extract other fields
+                    tags_match = re.search(r'"tags"\s*:\s*\[(.*?)\]', json_text, re.DOTALL)
+                    tags = []
+                    if tags_match:
+                        tags_str = tags_match.group(1)
+                        tags = re.findall(r'"([^"]*)"', tags_str)
+
+                    meta_match = re.search(r'"meta_description"\s*:\s*"([^"]*)"', json_text)
+                    meta_desc = meta_match.group(1) if meta_match else ""
+
+                    return {
+                        "title": title,
+                        "subtitle": subtitle,
+                        "content": content,
+                        "tags": tags[:10],  # Limit tags
+                        "meta_description": meta_desc,
+                    }
+        except Exception as e:
+            logger.warning(f"Failed to recover truncated JSON: {e}")
+
+        return None
+
+    def _extract_string_value(self, text: str) -> Optional[str]:
+        """
+        Extract a JSON string value starting with opening quote.
+        Handles escaped quotes properly.
+        """
+        if not text.startswith('"'):
+            return None
+
+        result = []
+        i = 1  # Skip opening quote
+        while i < len(text):
+            char = text[i]
+            if char == '\\' and i + 1 < len(text):
+                # Escape sequence
+                next_char = text[i + 1]
+                if next_char == '"':
+                    result.append('"')
+                elif next_char == 'n':
+                    result.append('\n')
+                elif next_char == 't':
+                    result.append('\t')
+                elif next_char == '\\':
+                    result.append('\\')
+                else:
+                    result.append(next_char)
+                i += 2
+            elif char == '"':
+                # End of string
+                return ''.join(result)
+            else:
+                result.append(char)
+                i += 1
+
+        # String was truncated - return what we have
+        return ''.join(result) if len(result) > 100 else None
 
     def _extract_json_object(self, text: str) -> Optional[str]:
         """Extract JSON object with balanced braces from text."""

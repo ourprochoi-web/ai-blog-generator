@@ -175,10 +175,15 @@ export interface GenerateResponse {
 export async function generateArticle(
   request: GenerateRequest
 ): Promise<GenerateResponse> {
-  return apiCall<GenerateResponse>('/api/generate', {
+  // Backend returns Article directly, wrap it for frontend compatibility
+  const article = await apiCall<Article>('/api/generate', {
     method: 'POST',
     body: JSON.stringify(request),
   });
+  return {
+    article,
+    generation_time_seconds: article.generation_time_seconds || 0,
+  };
 }
 
 export async function previewArticle(

@@ -119,6 +119,16 @@ class GeminiClient(BaseLLM):
             input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
             output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
 
+        # Check if response was truncated
+        if hasattr(response, "candidates") and response.candidates:
+            candidate = response.candidates[0]
+            finish_reason = getattr(candidate, "finish_reason", None)
+            if finish_reason:
+                logger.info(f"Gemini finish_reason: {finish_reason}")
+                # MAX_TOKENS means output was truncated
+                if str(finish_reason) == "MAX_TOKENS" or "MAX_TOKENS" in str(finish_reason):
+                    logger.warning(f"Response was truncated due to max_tokens limit. Output tokens: {output_tokens}")
+
         return LLMResponse(
             content=response.text,
             model=self.model_name,

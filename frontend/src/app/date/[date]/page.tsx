@@ -14,6 +14,7 @@ import {
   calculateReadTime,
 } from '@/lib/api';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface PageProps {
   params: Promise<{ date: string }>;
@@ -217,7 +218,7 @@ export default async function DatePage({ params }: PageProps) {
 
                   {/* Full Article Content */}
                   <div className="article-content">
-                    <ReactMarkdown>{featuredArticle.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{featuredArticle.content}</ReactMarkdown>
                   </div>
 
                   {/* Tags */}
