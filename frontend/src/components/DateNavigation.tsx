@@ -7,17 +7,32 @@ interface DateNavigationProps {
   archiveDates?: string[];
 }
 
-function formatDisplayDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+// Get today's date in KST (Korea Standard Time, UTC+9)
+function getTodayKST(): Date {
+  const now = new Date();
+  const kstOffset = 9 * 60; // KST is UTC+9
+  const kstTime = new Date(now.getTime() + (kstOffset + now.getTimezoneOffset()) * 60 * 1000);
+  kstTime.setHours(0, 0, 0, 0);
+  return kstTime;
+}
 
+function formatDisplayDate(dateStr: string): string {
+  // Parse date as KST midnight
+  const date = new Date(dateStr + 'T00:00:00+09:00');
+  date.setHours(0, 0, 0, 0);
+
+  const today = getTodayKST();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  if (date.getTime() === today.getTime()) {
+  // Compare just the date parts
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+
+  if (dateOnly.getTime() === todayOnly.getTime()) {
     return 'Today';
-  } else if (date.getTime() === yesterday.getTime()) {
+  } else if (dateOnly.getTime() === yesterdayOnly.getTime()) {
     return 'Yesterday';
   } else {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -25,10 +40,14 @@ function formatDisplayDate(dateStr: string): string {
 }
 
 function isToday(dateStr: string): boolean {
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date.getTime() === today.getTime();
+  const date = new Date(dateStr + 'T00:00:00+09:00');
+  const today = getTodayKST();
+
+  return (
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate()
+  );
 }
 
 export default function DateNavigation({

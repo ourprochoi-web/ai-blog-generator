@@ -87,8 +87,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   let sourceStats = { total: 0, by_type: { news: 0, paper: 0, article: 0 }, today_count: 0 };
   let archiveDates: string[] = [];
 
-  // Get today's date
-  const today = new Date().toISOString().split('T')[0];
+  // Get today's date in KST (Korea Standard Time, UTC+9)
+  const now = new Date();
+  const kstOffset = 9 * 60; // KST is UTC+9
+  const kstTime = new Date(now.getTime() + (kstOffset + now.getTimezoneOffset()) * 60 * 1000);
+  const today = kstTime.toISOString().split('T')[0];
 
   try {
     const [articlesResponse, statsResponse, archiveResponse] = await Promise.all([
@@ -117,8 +120,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const currentEdition = getCurrentEdition();
   const initialEdition = urlEdition || currentEdition;
 
-  // Get yesterday for navigation
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  // Get yesterday for navigation (in KST)
+  const yesterdayKst = new Date(kstTime.getTime() - 86400000);
+  const yesterday = yesterdayKst.toISOString().split('T')[0];
   const hasYesterday = archiveDates.includes(yesterday);
 
   return (
