@@ -92,8 +92,19 @@ export default function AIInsightBox({
                 gap: '16px',
                 marginTop: '12px',
                 flexWrap: 'wrap',
+                alignItems: 'center',
               }}
             >
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: '#374151',
+                  fontWeight: '500',
+                }}
+              >
+                {totalSources.toLocaleString()} sources
+              </span>
+              <span style={{ color: '#D1D5DB' }}>|</span>
               <span
                 style={{
                   fontSize: '12px',
@@ -127,6 +138,7 @@ export default function AIInsightBox({
               >
                 <span style={{ color: '#F59E0B' }}>●</span> {articleSources} articles
               </span>
+              <span style={{ color: '#D1D5DB' }}>|</span>
               <span
                 style={{
                   fontSize: '12px',
