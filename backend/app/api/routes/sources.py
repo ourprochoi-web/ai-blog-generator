@@ -624,12 +624,12 @@ async def evaluate_sources_batch(
 
 @router.post("/evaluate/pending", response_model=BulkEvaluationResponse)
 async def evaluate_pending_sources(
-    limit: int = Query(10, ge=1, le=50, description="Number of sources to evaluate"),
+    limit: int = Query(100, ge=1, le=500, description="Number of sources to evaluate"),
     repo: SourceRepository = Depends(get_source_repo),
     evaluator: SourceEvaluator = Depends(get_evaluator),
 ):
     """Evaluate all pending unreviewed sources."""
-    # Get unreviewed sources
+    # Get unreviewed sources (increased default limit to process all pending)
     sources, total = await repo.get_unreviewed_sources(page=1, page_size=limit)
 
     if not sources:
