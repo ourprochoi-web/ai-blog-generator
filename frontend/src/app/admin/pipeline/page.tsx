@@ -54,7 +54,13 @@ export default function PipelinePage() {
       // Convert ActivityLog to LogEntry format
       const entries: LogEntry[] = dbLogs.map((log: ActivityLog) => ({
         id: log.id,
-        timestamp: new Date(log.created_at).toLocaleTimeString(),
+        timestamp: new Date(log.created_at).toLocaleString('ko-KR', {
+          month: 'numeric',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        }),
         type: log.type,
         status: log.status,
         message: log.message,
@@ -725,7 +731,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#9CA3AF',
     fontSize: 13,
     fontFamily: 'monospace',
-    minWidth: 80,
+    minWidth: 120,
   },
   logIcon: {
     fontSize: 14,
