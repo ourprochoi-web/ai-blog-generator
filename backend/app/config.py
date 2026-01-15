@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     MORNING_EDITION_HOUR: int = 8   # 오전 8시 KST
     EVENING_EDITION_HOUR: int = 20  # 오후 8시 KST
 
+    # Slack notifications
+    SLACK_WEBHOOK_URL: str = ""  # Slack Incoming Webhook URL
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
