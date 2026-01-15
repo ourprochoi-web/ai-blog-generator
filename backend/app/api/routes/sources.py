@@ -632,7 +632,7 @@ async def evaluate_sources_batch(
 
 @router.post("/evaluate/pending", response_model=BulkEvaluationResponse)
 async def evaluate_pending_sources(
-    limit: int = Query(20, ge=1, le=100, description="Number of sources to evaluate"),
+    limit: int = Query(10, ge=1, le=50, description="Number of sources to evaluate"),
     repo: SourceRepository = Depends(get_source_repo),
     evaluator: SourceEvaluator = Depends(get_evaluator),
 ):
