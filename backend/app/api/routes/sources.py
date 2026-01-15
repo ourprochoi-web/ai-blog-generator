@@ -592,23 +592,31 @@ async def evaluate_sources_batch(
     try:
         evaluations = await evaluator.evaluate_sources_batch(sources)
 
+        # Build a set of valid source IDs for validation
+        valid_source_ids = {s.get("id") for s in sources}
+
         # Update relevance scores and auto-select high-scoring sources
         for eval_result in evaluations:
             source_id = eval_result.get("source_id")
             score = eval_result.get("relevance_score", 50)
-            if source_id:
-                update_data = {
-                    "relevance_score": score,
-                    "reviewed_at": datetime.utcnow().isoformat(),
-                }
 
-                # Auto-select if score meets threshold
-                if score >= settings.AUTO_GENERATE_MIN_SCORE:
-                    update_data["is_selected"] = True
-                    update_data["status"] = SourceStatus.SELECTED.value
-                    update_data["selection_note"] = f"Auto-selected: score {score}"
+            # Skip if source_id is missing or not in our valid set (LLM sometimes corrupts UUIDs)
+            if not source_id or source_id not in valid_source_ids:
+                logger.warning(f"Skipping invalid source_id from LLM: {source_id}")
+                continue
 
-                await repo.update(source_id, update_data)
+            update_data = {
+                "relevance_score": score,
+                "reviewed_at": datetime.utcnow().isoformat(),
+            }
+
+            # Auto-select if score meets threshold
+            if score >= settings.AUTO_GENERATE_MIN_SCORE:
+                update_data["is_selected"] = True
+                update_data["status"] = SourceStatus.SELECTED.value
+                update_data["selection_note"] = f"Auto-selected: score {score}"
+
+            await repo.update(source_id, update_data)
 
         return BulkEvaluationResponse(
             evaluations=evaluations,
@@ -638,23 +646,31 @@ async def evaluate_pending_sources(
     try:
         evaluations = await evaluator.evaluate_sources_batch(sources)
 
+        # Build a set of valid source IDs for validation
+        valid_source_ids = {s.get("id") for s in sources}
+
         # Update relevance scores and auto-select high-scoring sources
         for eval_result in evaluations:
             source_id = eval_result.get("source_id")
             score = eval_result.get("relevance_score", 50)
-            if source_id:
-                update_data = {
-                    "relevance_score": score,
-                    "reviewed_at": datetime.utcnow().isoformat(),
-                }
 
-                # Auto-select if score meets threshold
-                if score >= settings.AUTO_GENERATE_MIN_SCORE:
-                    update_data["is_selected"] = True
-                    update_data["status"] = SourceStatus.SELECTED.value
-                    update_data["selection_note"] = f"Auto-selected: score {score}"
+            # Skip if source_id is missing or not in our valid set (LLM sometimes corrupts UUIDs)
+            if not source_id or source_id not in valid_source_ids:
+                logger.warning(f"Skipping invalid source_id from LLM: {source_id}")
+                continue
 
-                await repo.update(source_id, update_data)
+            update_data = {
+                "relevance_score": score,
+                "reviewed_at": datetime.utcnow().isoformat(),
+            }
+
+            # Auto-select if score meets threshold
+            if score >= settings.AUTO_GENERATE_MIN_SCORE:
+                update_data["is_selected"] = True
+                update_data["status"] = SourceStatus.SELECTED.value
+                update_data["selection_note"] = f"Auto-selected: score {score}"
+
+            await repo.update(source_id, update_data)
 
         return BulkEvaluationResponse(
             evaluations=evaluations,
