@@ -185,7 +185,7 @@ Source {i}:
         response = await self.llm.generate(
             prompt=prompt,
             temperature=0.3,
-            max_tokens=4000,  # Batch evaluation needs more tokens
+            max_tokens=8000,  # Batch evaluation needs more tokens
         )
 
         return self._parse_batch_response(response.content)
