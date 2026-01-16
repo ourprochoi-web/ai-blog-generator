@@ -23,6 +23,8 @@ class ActivityStatus(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     ERROR = "error"
+    INTERRUPTED = "interrupted"  # Job was interrupted (app restart, crash)
+    TIMEOUT = "timeout"  # Job timed out
 
 
 class ActivityLog:

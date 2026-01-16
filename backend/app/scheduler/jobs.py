@@ -18,7 +18,7 @@ from backend.app.db.repositories.activity_log_repo import ActivityLogRepository
 from backend.app.db.repositories.article_repo import ArticleRepository
 from backend.app.db.repositories.source_repo import SourceRepository
 from backend.app.models.activity_log import ActivityStatus, ActivityType
-from backend.app.models.article import ArticleEdition
+from backend.app.models.article import ArticleEdition, HeroImageStatus
 from backend.app.models.source import SourceStatus
 from backend.app.services.generators.blog_writer import BlogWriter
 from backend.app.services.generators.source_evaluator import SourceEvaluator
@@ -26,6 +26,7 @@ from backend.app.services.llm.image_generator import ImageGenerator
 from backend.app.services.storage.supabase_storage import SupabaseStorage
 from backend.app.services.scrapers.arxiv import ArxivScraper
 from backend.app.services.scrapers.news import NewsScraper
+from backend.app.services.notifications.slack import get_slack_notifier
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ async def scrape_all_sources() -> dict:
     client = get_supabase_client()
     source_repo = SourceRepository(client)
     activity_log_repo = ActivityLogRepository(client)
+    slack = get_slack_notifier()
 
     # Log start
     await activity_log_repo.create(
@@ -63,6 +65,9 @@ async def scrape_all_sources() -> dict:
         ActivityStatus.RUNNING,
         "Starting scrape job",
     )
+
+    # Slack notification: scrape started
+    await slack.notify_scrape_started()
 
     results = {
         "rss_scraped": 0,
@@ -172,6 +177,14 @@ async def scrape_all_sources() -> dict:
         },
     )
 
+    # Slack notification: scrape completed
+    await slack.notify_scrape_completed(
+        rss_count=results["rss_scraped"],
+        arxiv_count=results["arxiv_scraped"],
+        duplicates_skipped=results["duplicates_skipped"],
+        errors=results["errors"],
+    )
+
     return results
 
 
@@ -187,6 +200,7 @@ async def evaluate_pending_sources() -> dict:
     source_repo = SourceRepository(client)
     activity_log_repo = ActivityLogRepository(client)
     evaluator = SourceEvaluator()
+    slack = get_slack_notifier()
 
     # Log start
     await activity_log_repo.create(
@@ -198,11 +212,16 @@ async def evaluate_pending_sources() -> dict:
     results = {
         "evaluated": 0,
         "auto_selected": 0,
+        "selected_sources": [],  # Track selected sources for notification
         "errors": [],
     }
 
     # Get unreviewed pending sources
-    sources, _ = await source_repo.get_unreviewed_sources(page=1, page_size=20)
+    sources, _ = await source_repo.get_unreviewed_sources(page=1, page_size=100)
+
+    # Slack notification: evaluation started
+    if sources:
+        await slack.notify_evaluation_started(len(sources))
 
     for source in sources:
         try:
@@ -228,6 +247,11 @@ async def evaluate_pending_sources() -> dict:
                 update_data["status"] = SourceStatus.SELECTED.value
                 update_data["selection_note"] = f"Auto-selected: {evaluation.reason}"
                 results["auto_selected"] += 1
+                # Track selected source for notification
+                results["selected_sources"].append({
+                    "title": source["title"],
+                    "relevance_score": evaluation.relevance_score,
+                })
 
             await source_repo.update(source["id"], update_data)
             results["evaluated"] += 1
@@ -253,6 +277,14 @@ async def evaluate_pending_sources() -> dict:
             "auto_selected": results["auto_selected"],
             "errors": results["errors"][:5] if results["errors"] else [],
         },
+    )
+
+    # Slack notification: evaluation completed
+    await slack.notify_evaluation_completed(
+        evaluated=results["evaluated"],
+        auto_selected=results["auto_selected"],
+        selected_sources=results["selected_sources"],
+        errors=results["errors"],
     )
 
     return results
@@ -289,6 +321,7 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
     source_repo = SourceRepository(client)
     article_repo = ArticleRepository(client)
     activity_log_repo = ActivityLogRepository(client)
+    slack = get_slack_notifier()
 
     # Log start
     await activity_log_repo.create(
@@ -321,6 +354,7 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
         "generated": 0,
         "skipped_existing": 0,
         "edition": current_edition.value,
+        "generated_articles": [],  # Track generated articles for notification
         "errors": [],
     }
 
@@ -335,6 +369,10 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
 
     # Get selected sources ready for generation
     sources = await source_repo.get_sources_for_generation(limit=remaining_quota)
+
+    # Slack notification: generation started
+    if sources:
+        await slack.notify_generation_started(len(sources), current_edition.value)
 
     for source in sources:
         # Check if article already exists for this source
@@ -415,15 +453,23 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
                 "generation_time_seconds": generated.generation_time_seconds,
             }
 
-            # Add hero image URL if generated
-            if generated.hero_image_url:
-                article_data["og_image_url"] = generated.hero_image_url
+            # Set hero image status for async generation
+            if settings.GENERATE_HERO_IMAGES:
+                article_data["hero_image_status"] = HeroImageStatus.PENDING.value
+                article_data["hero_image_requested_at"] = datetime.utcnow().isoformat()
+            else:
+                article_data["hero_image_status"] = HeroImageStatus.SKIPPED.value
 
             await article_repo.create(article_data)
 
             # Update source status to processed
             await source_repo.update_status(source["id"], SourceStatus.PROCESSED)
             results["generated"] += 1
+            # Track generated article for notification
+            results["generated_articles"].append({
+                "title": generated.title,
+                "slug": slug,
+            })
 
             logger.info(f"Generated article: {generated.title}")
 
@@ -455,6 +501,14 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
         },
     )
 
+    # Slack notification: generation completed
+    await slack.notify_generation_completed(
+        generated=results["generated"],
+        edition=current_edition.value,
+        articles=results["generated_articles"],
+        errors=results["errors"],
+    )
+
     return results
 
 
@@ -474,9 +528,21 @@ async def run_full_pipeline() -> dict:
 
     client = get_supabase_client()
     activity_log_repo = ActivityLogRepository(client)
+    slack = get_slack_notifier()
 
     async with _pipeline_lock:
         logger.info("Starting full pipeline job")
+
+        # Mark any stale running jobs as interrupted (handles app restarts)
+        interrupted_count = await activity_log_repo.mark_stale_running_as_interrupted(
+            timeout_minutes=30
+        )
+        if interrupted_count > 0:
+            logger.info(f"Marked {interrupted_count} stale running jobs as interrupted")
+            await slack.notify_stale_jobs_cleaned(interrupted_count)
+
+        # Slack notification: pipeline started
+        await slack.notify_pipeline_started()
 
         # Log pipeline start
         await activity_log_repo.create(
@@ -513,6 +579,23 @@ async def run_full_pipeline() -> dict:
                 },
             )
 
+            # Slack notification: pipeline completed
+            await slack.notify_pipeline_completed(
+                scraped=results["scrape"].get("rss_scraped", 0) + results["scrape"].get("arxiv_scraped", 0),
+                evaluated=results["evaluate"].get("evaluated", 0),
+                auto_selected=results["evaluate"].get("auto_selected", 0),
+                generated=results["generate"].get("generated", 0),
+                edition=results["generate"].get("edition", "unknown"),
+            )
+
+            # Step 4: Generate hero images asynchronously (non-blocking)
+            if settings.GENERATE_HERO_IMAGES and results["generate"].get("generated", 0) > 0:
+                try:
+                    results["hero_images"] = await generate_pending_hero_images()
+                except Exception as img_error:
+                    logger.warning(f"Hero image generation failed (non-critical): {img_error}")
+                    results["hero_images"] = {"error": str(img_error)}
+
         except Exception as e:
             logger.error(f"Pipeline error: {str(e)}")
             results["error"] = str(e)
@@ -523,6 +606,9 @@ async def run_full_pipeline() -> dict:
                 ActivityStatus.ERROR,
                 f"Pipeline failed: {str(e)}",
             )
+
+            # Slack notification: pipeline error
+            await slack.notify_pipeline_error("pipeline", str(e))
 
         logger.info("Full pipeline completed")
         return results
@@ -640,6 +726,7 @@ async def check_and_run_missed_schedule() -> Optional[dict]:
 
     client = get_supabase_client()
     activity_log_repo = ActivityLogRepository(client)
+    slack = get_slack_notifier()
 
     utc_now = datetime.utcnow()
     kst_hour = (utc_now.hour + 9) % 24
@@ -675,8 +762,9 @@ async def check_and_run_missed_schedule() -> Optional[dict]:
     )
 
     # Check if any successful pipeline run exists
+    # Note: RUNNING status means interrupted (not completed), so we only check SUCCESS
     pipeline_ran = any(
-        log.get("status") in [ActivityStatus.SUCCESS.value, ActivityStatus.RUNNING.value]
+        log.get("status") == ActivityStatus.SUCCESS.value
         for log in recent_logs
     )
 
@@ -685,6 +773,12 @@ async def check_and_run_missed_schedule() -> Optional[dict]:
         return None
 
     logger.info(f"Missed {edition.value} edition pipeline detected! Running now...")
+
+    # Slack notification: pipeline resumed
+    await slack.notify_pipeline_resumed(
+        edition=edition.value,
+        reason="App restarted during scheduled time window",
+    )
 
     # Log that we're running a catch-up
     await activity_log_repo.create(
@@ -697,6 +791,114 @@ async def check_and_run_missed_schedule() -> Optional[dict]:
     result = await run_full_pipeline()
 
     return result
+
+
+async def generate_pending_hero_images() -> dict:
+    """
+    Generate hero images for articles with pending status.
+
+    This runs as a separate job to avoid blocking article generation.
+
+    Returns:
+        Dictionary with generation results
+    """
+    logger.info("Starting hero image generation job")
+
+    if not settings.GENERATE_HERO_IMAGES:
+        logger.info("Hero image generation disabled, skipping")
+        return {"skipped": True, "reason": "disabled"}
+
+    client = get_supabase_client()
+    article_repo = ArticleRepository(client)
+    activity_log_repo = ActivityLogRepository(client)
+    slack = get_slack_notifier()
+
+    results = {
+        "generated": 0,
+        "failed": 0,
+        "errors": [],
+    }
+
+    try:
+        image_generator = ImageGenerator()
+        storage = SupabaseStorage(bucket=settings.IMAGE_STORAGE_BUCKET)
+    except Exception as e:
+        logger.error(f"Failed to initialize image generator: {e}")
+        return {"error": str(e)}
+
+    # Get articles with pending hero images
+    pending_articles = await article_repo.get_pending_hero_images(limit=5)
+
+    if not pending_articles:
+        logger.info("No pending hero images to generate")
+        return results
+
+    logger.info(f"Found {len(pending_articles)} articles with pending hero images")
+
+    for article in pending_articles:
+        article_id = article["id"]
+        try:
+            # Mark as generating
+            await article_repo.update_hero_image_status(
+                article_id,
+                HeroImageStatus.GENERATING,
+            )
+
+            logger.info(f"Generating hero image for: {article['title'][:50]}...")
+
+            # Generate image
+            image_data = await image_generator.generate_hero_image(
+                article_title=article["title"],
+                article_summary=article.get("meta_description", ""),
+            )
+
+            if image_data:
+                # Upload to storage
+                image_url = await storage.upload_image(
+                    image_data=image_data,
+                    article_slug=article["slug"],
+                    image_type="hero",
+                )
+
+                if image_url:
+                    await article_repo.update_hero_image_status(
+                        article_id,
+                        HeroImageStatus.COMPLETED,
+                        image_url=image_url,
+                    )
+                    results["generated"] += 1
+                    logger.info(f"Hero image uploaded: {image_url}")
+                else:
+                    raise Exception("Failed to upload image to storage")
+            else:
+                raise Exception("Image generator returned no data")
+
+        except Exception as e:
+            error_msg = f"Failed to generate hero image for {article_id}: {str(e)}"
+            logger.error(error_msg)
+            results["errors"].append(error_msg)
+            results["failed"] += 1
+
+            await article_repo.update_hero_image_status(
+                article_id,
+                HeroImageStatus.FAILED,
+                error=str(e),
+            )
+
+    logger.info(
+        f"Hero image generation completed: {results['generated']} generated, "
+        f"{results['failed']} failed"
+    )
+
+    # Slack notification if any images were processed
+    if results["generated"] > 0 or results["failed"] > 0:
+        await slack.notify_hero_images_generated(
+            generated=results["generated"],
+            failed=results["failed"],
+            errors=results["errors"],
+        )
+
+    return results
 
 
 def setup_scheduler() -> AsyncIOScheduler:

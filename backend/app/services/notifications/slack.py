@@ -361,6 +361,163 @@ class SlackNotifier:
             ],
         )
 
+    # New notification methods for enhanced status reporting
+
+    async def notify_stale_jobs_cleaned(self, count: int) -> bool:
+        """Notify when stale running jobs are marked as interrupted."""
+        return await self.send_message(
+            text=f":broom: Cleaned up {count} stale jobs",
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f":broom: *Stale Jobs Cleaned*\nMarked {count} interrupted job(s) from previous run.",
+                    },
+                },
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": "These jobs were running when the app restarted and didn't complete.",
+                        }
+                    ],
+                },
+            ],
+        )
+
+    async def notify_pipeline_resumed(self, edition: str, reason: str) -> bool:
+        """Notify when a missed pipeline is being resumed."""
+        return await self.send_message(
+            text=f":arrows_counterclockwise: Resuming missed {edition} pipeline",
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f":arrows_counterclockwise: *Pipeline Resumed*\nRunning missed *{edition}* edition pipeline.",
+                    },
+                },
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"Reason: {reason}",
+                        }
+                    ],
+                },
+            ],
+        )
+
+    async def notify_hero_images_generated(
+        self,
+        generated: int,
+        failed: int,
+        errors: List[str] = None,
+    ) -> bool:
+        """Notify hero image generation results."""
+        errors = errors or []
+        total = generated + failed
+        status_emoji = ":white_check_mark:" if failed == 0 else ":warning:"
+
+        text = f"{status_emoji} Hero images: {generated}/{total} generated"
+
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"{status_emoji} *Hero Image Generation*",
+                },
+            },
+            {
+                "type": "section",
+                "fields": [
+                    {"type": "mrkdwn", "text": f"*Generated:*\n{generated}"},
+                    {"type": "mrkdwn", "text": f"*Failed:*\n{failed}"},
+                ],
+            },
+        ]
+
+        if errors:
+            error_text = "\n".join(f"- {e[:80]}..." for e in errors[:3])
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f":x: *Errors:*\n{error_text}",
+                },
+            })
+
+        return await self.send_message(text=text, blocks=blocks)
+
+    async def notify_job_timeout(self, job_type: str, job_id: str, duration_minutes: int) -> bool:
+        """Notify when a job times out."""
+        return await self.send_message(
+            text=f":hourglass: Job timeout: {job_type}",
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f":hourglass: *Job Timeout*\n*{job_type}* job exceeded time limit.",
+                    },
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                        {"type": "mrkdwn", "text": f"*Job ID:*\n{job_id[:8]}..."},
+                        {"type": "mrkdwn", "text": f"*Duration:*\n{duration_minutes} min"},
+                    ],
+                },
+            ],
+        )
+
+    async def notify_daily_summary(
+        self,
+        date: str,
+        total_scraped: int,
+        total_evaluated: int,
+        total_generated: int,
+        total_published: int,
+        errors_count: int,
+    ) -> bool:
+        """Send daily summary notification."""
+        status_emoji = ":chart_with_upwards_trend:" if errors_count == 0 else ":warning:"
+
+        return await self.send_message(
+            text=f"{status_emoji} Daily Summary for {date}",
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"{status_emoji} *Daily Summary - {date}*",
+                    },
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                        {"type": "mrkdwn", "text": f"*Sources Scraped:*\n{total_scraped}"},
+                        {"type": "mrkdwn", "text": f"*Sources Evaluated:*\n{total_evaluated}"},
+                        {"type": "mrkdwn", "text": f"*Articles Generated:*\n{total_generated}"},
+                        {"type": "mrkdwn", "text": f"*Articles Published:*\n{total_published}"},
+                    ],
+                },
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f":x: Errors: {errors_count}" if errors_count > 0 else ":white_check_mark: No errors",
+                        }
+                    ],
+                },
+            ],
+        )
+
 
 # Global instance (lazy initialization)
 _slack_notifier: Optional[SlackNotifier] = None

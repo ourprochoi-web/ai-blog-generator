@@ -24,6 +24,17 @@ class ArticleEdition(str, Enum):
     EVENING = "evening"
 
 
+class HeroImageStatus(str, Enum):
+    """Hero image generation status enumeration."""
+
+    NONE = "none"  # No image requested
+    PENDING = "pending"  # Waiting for generation
+    GENERATING = "generating"  # Currently generating
+    COMPLETED = "completed"  # Successfully generated
+    FAILED = "failed"  # Generation failed
+    SKIPPED = "skipped"  # Skipped (e.g., disabled in config)
+
+
 class Reference:
     """Reference link model."""
 

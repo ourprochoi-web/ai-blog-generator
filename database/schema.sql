@@ -172,3 +172,22 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 CREATE INDEX IF NOT EXISTS idx_activity_logs_type ON activity_logs(type);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_status ON activity_logs(status);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at DESC);
+
+-- =====================================================
+-- Migration: Add new status values to activity_logs
+-- Run this to support INTERRUPTED and TIMEOUT statuses
+-- =====================================================
+ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS activity_logs_status_check;
+ALTER TABLE activity_logs ADD CONSTRAINT activity_logs_status_check
+    CHECK (status IN ('running', 'success', 'error', 'interrupted', 'timeout'));
+
+-- =====================================================
+-- Migration: Add hero image async generation fields to articles
+-- =====================================================
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS hero_image_status VARCHAR(20)
+    DEFAULT 'none' CHECK (hero_image_status IN ('none', 'pending', 'generating', 'completed', 'failed', 'skipped'));
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS hero_image_error TEXT;
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS hero_image_requested_at TIMESTAMP WITH TIME ZONE;
+
+CREATE INDEX IF NOT EXISTS idx_articles_hero_image_status ON articles(hero_image_status)
+    WHERE hero_image_status = 'pending';

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from supabase import Client
 
 from backend.app.db.repositories.base import BaseRepository
-from backend.app.models.article import ArticleEdition, ArticleStatus
+from backend.app.models.article import ArticleEdition, ArticleStatus, HeroImageStatus
 
 
 class ArticleRepository(BaseRepository):
@@ -224,6 +224,48 @@ class ArticleRepository(BaseRepository):
         )
 
         return response.data or [], total
+
+    # Hero image async generation methods
+
+    async def get_pending_hero_images(
+        self,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Get articles with pending hero image generation."""
+        response = (
+            self._query()
+            .select("*")
+            .eq("hero_image_status", HeroImageStatus.PENDING.value)
+            .order("hero_image_requested_at", desc=False)
+            .limit(limit)
+            .execute()
+        )
+        return response.data or []
+
+    async def update_hero_image_status(
+        self,
+        article_id: str,
+        status: HeroImageStatus,
+        image_url: Optional[str] = None,
+        error: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Update hero image generation status."""
+        data = {"hero_image_status": status.value}
+
+        if image_url:
+            data["og_image_url"] = image_url
+        if error:
+            data["hero_image_error"] = error
+
+        return await self.update(article_id, data)
+
+    async def request_hero_image(self, article_id: str) -> Optional[Dict[str, Any]]:
+        """Request hero image generation for an article."""
+        data = {
+            "hero_image_status": HeroImageStatus.PENDING.value,
+            "hero_image_requested_at": datetime.utcnow().isoformat(),
+        }
+        return await self.update(article_id, data)
 
 
 class ArticleVersionRepository(BaseRepository):

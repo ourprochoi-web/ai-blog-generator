@@ -154,25 +154,11 @@ class BlogWriter:
         word_count = len(re.findall(r"\w+", content_text))
         char_count = len(content_text)
 
-        # Generate hero image if requested
+        # Hero image generation is now handled asynchronously by a separate job.
+        # The article will be saved with hero_image_status='pending' and
+        # generate_pending_hero_images() will process it later.
+        # This prevents image generation from blocking article creation.
         hero_image_url = None
-        if generate_image and self.image_generator and self.storage and article_slug:
-            try:
-                logger.info(f"Generating hero image for: {article_data.get('title', '')[:50]}")
-                image_data = await self.image_generator.generate_hero_image(
-                    article_title=article_data.get("title", title),
-                    article_summary=article_data.get("meta_description", summary or ""),
-                )
-                if image_data:
-                    hero_image_url = await self.storage.upload_image(
-                        image_data=image_data,
-                        article_slug=article_slug,
-                        image_type="hero",
-                    )
-                    if hero_image_url:
-                        logger.info(f"Hero image uploaded: {hero_image_url}")
-            except Exception as e:
-                logger.warning(f"Failed to generate hero image: {e}")
 
         return GeneratedArticle(
             title=article_data.get("title", title),

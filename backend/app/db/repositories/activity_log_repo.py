@@ -119,6 +119,62 @@ class ActivityLogRepository:
 
         return count
 
+    async def mark_stale_running_as_interrupted(
+        self,
+        timeout_minutes: int = 30,
+    ) -> int:
+        """
+        Mark stale RUNNING logs as INTERRUPTED.
+
+        Called at job start to clean up any jobs that were interrupted
+        by app restart or crash.
+
+        Args:
+            timeout_minutes: Consider RUNNING logs older than this as stale
+
+        Returns:
+            Number of logs marked as interrupted
+        """
+        from datetime import timedelta
+
+        cutoff_time = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+
+        # Find stale running logs
+        stale_logs = (
+            self._query()
+            .select("id, type, message")
+            .eq("status", ActivityStatus.RUNNING.value)
+            .lt("created_at", cutoff_time.isoformat())
+            .execute()
+        )
+
+        count = 0
+        for log in stale_logs.data or []:
+            # Update to interrupted
+            self._query().update({
+                "status": ActivityStatus.INTERRUPTED.value,
+                "details": {
+                    "reason": "Marked as interrupted - job did not complete within timeout",
+                    "original_message": log.get("message", ""),
+                },
+            }).eq("id", log["id"]).execute()
+            count += 1
+
+        return count
+
+    async def get_running_jobs(
+        self,
+        activity_type: Optional[ActivityType] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get currently running jobs."""
+        query = self._query().select("*").eq("status", ActivityStatus.RUNNING.value)
+
+        if activity_type:
+            query = query.eq("type", activity_type.value)
+
+        response = query.order("created_at", desc=True).execute()
+        return response.data or []
+
 
 # Convenience function for logging from anywhere
 async def log_activity(
