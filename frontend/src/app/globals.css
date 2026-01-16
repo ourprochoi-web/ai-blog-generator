@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap');
-
 /* CSS Variables for theming */
 :root {
   /* Light mode colors (default) */
@@ -55,7 +53,7 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text);
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -68,11 +66,11 @@ a {
 
 /* Typography */
 .font-serif {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-playfair), Georgia, serif;
 }
 
 .font-sans {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* Article content styles */
@@ -92,7 +90,7 @@ a {
   font-weight: 500;
   margin-top: 48px;
   margin-bottom: 24px;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-playfair), Georgia, serif;
   color: var(--color-text);
 }
 
@@ -101,7 +99,7 @@ a {
   font-weight: 600;
   margin-top: 36px;
   margin-bottom: 16px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-inter), sans-serif;
   color: var(--color-text);
 }
 
@@ -110,7 +108,7 @@ a {
   width: 100%;
   border-collapse: collapse;
   margin: 32px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-inter), sans-serif;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -173,7 +171,7 @@ a {
 /* Buttons */
 button {
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-inter), sans-serif;
 }
 
 /* Transitions */
@@ -576,4 +574,39 @@ button {
 
 [data-theme="dark"] .article-card-medium p {
   color: var(--color-text-muted) !important;
+}
+
+/* Skeleton loading styles */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-bg-tertiary) 25%, var(--color-border) 50%, var(--color-bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Skip to content link for a11y */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-accent);
+  color: white;
+  padding: 8px 16px;
+  z-index: 1000;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 0;
 }

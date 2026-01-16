@@ -158,9 +158,17 @@ function HomeContentInner({
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Skip to main content link for accessibility */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       <Header initialEdition={initialEdition} />
 
       <main
+        id="main-content"
+        role="main"
+        aria-label={`${editionLabel} articles`}
         style={{
           flex: 1,
           backgroundColor: '#FAFAF9',
@@ -294,7 +302,7 @@ function HomeContentInner({
                     More stories
                   </h3>
 
-                  <div className="articles-grid">
+                  <div className="articles-grid" role="feed" aria-label="More stories">
                     {otherDisplayArticles.map((article) => (
                       <ArticleCard
                         key={article.id}

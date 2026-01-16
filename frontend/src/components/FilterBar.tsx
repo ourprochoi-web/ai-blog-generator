@@ -43,13 +43,15 @@ export default function FilterBar({
       }}
     >
       {/* Category Pills */}
-      <div className="filter-bar">
+      <div className="filter-bar" role="group" aria-label="Filter by category">
         {CATEGORIES.map((cat) => {
           const isActive = activeCategory === cat.id;
           return (
             <button
               key={cat.id || 'all'}
               onClick={() => onCategoryChange(cat.id)}
+              aria-pressed={isActive}
+              aria-label={`Filter by ${cat.label}`}
               style={{
                 padding: '8px 16px',
                 borderRadius: '20px',
@@ -91,6 +93,7 @@ export default function FilterBar({
             <span>#{activeTag}</span>
             <button
               onClick={onTagClear}
+              aria-label={`Remove ${activeTag} filter`}
               style={{
                 background: 'none',
                 border: 'none',
@@ -110,10 +113,11 @@ export default function FilterBar({
         {searchOpen ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <input
-              type="text"
+              type="search"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search articles..."
+              aria-label="Search articles"
               autoFocus
               style={{
                 padding: '8px 12px',
@@ -135,6 +139,7 @@ export default function FilterBar({
                 setSearchOpen(false);
                 onSearchChange('');
               }}
+              aria-label="Close search"
               style={{
                 background: 'none',
                 border: 'none',
@@ -150,6 +155,7 @@ export default function FilterBar({
         ) : (
           <button
             onClick={() => setSearchOpen(true)}
+            aria-label="Open search"
             style={{
               background: 'none',
               border: '1px solid #E5E7EB',
@@ -163,7 +169,7 @@ export default function FilterBar({
               fontSize: '13px',
             }}
           >
-            <span style={{ fontSize: '14px' }}>🔍</span>
+            <span style={{ fontSize: '14px' }} aria-hidden="true">🔍</span>
             Search
           </button>
         )}

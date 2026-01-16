@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer className="footer">
+    <footer className="footer" role="contentinfo" aria-label="Site footer">
       <div
         style={{
           maxWidth: '720px',
@@ -31,7 +31,8 @@ export default function Footer() {
         <p className="footer-desc">
           AI-curated news, delivered twice daily.
         </p>
-        <div
+        <nav
+          aria-label="Social links"
           style={{
             display: 'flex',
             gap: '24px',
@@ -43,11 +44,12 @@ export default function Footer() {
               key={item}
               href="#"
               className="footer-link"
+              aria-label={`Follow us on ${item}`}
             >
               {item}
             </a>
           ))}
-        </div>
+        </nav>
       </div>
     </footer>
   );

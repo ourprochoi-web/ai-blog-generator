@@ -10,26 +10,13 @@ interface SkeletonProps {
 export function Skeleton({ width = '100%', height = 20, borderRadius = 8 }: SkeletonProps) {
   return (
     <div
+      className="skeleton"
       style={{
         width,
         height,
         borderRadius,
-        background: 'linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%)',
-        backgroundSize: '200% 100%',
-        animation: 'shimmer 1.5s infinite',
       }}
-    >
-      <style jsx global>{`
-        @keyframes shimmer {
-          0% {
-            background-position: 200% 0;
-          }
-          100% {
-            background-position: -200% 0;
-          }
-        }
-      `}</style>
-    </div>
+    />
   );
 }
 
@@ -130,6 +117,65 @@ export function ArticleGridSkeleton({ count = 4 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <ArticleCardSkeleton key={i} variant="medium" />
       ))}
+    </div>
+  );
+}
+
+// Article detail page skeleton
+export function ArticleDetailSkeleton() {
+  return (
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px' }}>
+      {/* Back button */}
+      <Skeleton width={150} height={20} borderRadius={4} />
+
+      {/* Header */}
+      <div style={{ marginTop: 32 }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+          <Skeleton width={80} height={24} borderRadius={4} />
+          <Skeleton width={100} height={20} borderRadius={4} />
+        </div>
+
+        {/* Title */}
+        <Skeleton width="100%" height={48} borderRadius={8} />
+        <div style={{ marginTop: 12 }}>
+          <Skeleton width="80%" height={48} borderRadius={8} />
+        </div>
+
+        {/* Subtitle */}
+        <div style={{ marginTop: 20 }}>
+          <Skeleton width="100%" height={24} borderRadius={6} />
+          <div style={{ marginTop: 8 }}>
+            <Skeleton width="60%" height={24} borderRadius={6} />
+          </div>
+        </div>
+      </div>
+
+      {/* Hero image */}
+      <div style={{ marginTop: 40, marginBottom: 40 }}>
+        <Skeleton width="100%" height={300} borderRadius={12} />
+      </div>
+
+      {/* Content */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Skeleton width="100%" height={20} borderRadius={4} />
+        <Skeleton width="95%" height={20} borderRadius={4} />
+        <Skeleton width="100%" height={20} borderRadius={4} />
+        <Skeleton width="88%" height={20} borderRadius={4} />
+        <div style={{ marginTop: 24 }}>
+          <Skeleton width="40%" height={32} borderRadius={6} />
+        </div>
+        <Skeleton width="100%" height={20} borderRadius={4} />
+        <Skeleton width="92%" height={20} borderRadius={4} />
+        <Skeleton width="100%" height={20} borderRadius={4} />
+        <Skeleton width="75%" height={20} borderRadius={4} />
+      </div>
+
+      {/* Tags */}
+      <div style={{ marginTop: 48, display: 'flex', gap: 8 }}>
+        <Skeleton width={80} height={32} borderRadius={16} />
+        <Skeleton width={100} height={32} borderRadius={16} />
+        <Skeleton width={70} height={32} borderRadius={16} />
+      </div>
     </div>
   );
 }

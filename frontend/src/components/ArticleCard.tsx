@@ -106,6 +106,7 @@ export default function ArticleCard({
     return (
       <article
         className="article-card-medium"
+        aria-label={`${article.title} - ${category} - ${readTime}`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{
@@ -270,7 +271,10 @@ export default function ArticleCard({
 
   if (featured) {
     return (
-      <article style={{ marginBottom: '48px' }}>
+      <article
+        aria-label={`Featured: ${article.title} - ${category} - ${readTime}`}
+        style={{ marginBottom: '48px' }}
+      >
         {/* Category & Date */}
         <div
           style={{
@@ -390,6 +394,7 @@ export default function ArticleCard({
   // Regular card
   return (
     <article
+      aria-label={`${article.title} - ${category} - ${readTime}`}
       style={{
         padding: '24px 0',
         borderBottom: '1px solid #E5E7EB',
