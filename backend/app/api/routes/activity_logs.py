@@ -8,11 +8,15 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
+from backend.app.api.deps import verify_admin_api_key
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.activity_log_repo import ActivityLogRepository
 
 
-router = APIRouter(prefix="/activity-logs")
+router = APIRouter(
+    prefix="/activity-logs",
+    dependencies=[Depends(verify_admin_api_key)],  # Protect activity logs routes
+)
 
 
 class ActivityLogResponse(BaseModel):

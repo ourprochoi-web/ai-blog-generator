@@ -1,12 +1,6 @@
 export default function Footer() {
   return (
-    <footer
-      style={{
-        borderTop: '1px solid #E5E7EB',
-        backgroundColor: '#FFFFFF',
-        padding: '40px 24px',
-      }}
-    >
+    <footer className="footer">
       <div
         style={{
           maxWidth: '720px',
@@ -25,7 +19,7 @@ export default function Footer() {
         >
           <span style={{ fontSize: '20px' }}>⚡</span>
           <span
-            className="font-serif"
+            className="font-serif footer-title"
             style={{
               fontSize: '16px',
               fontWeight: '600',
@@ -34,13 +28,7 @@ export default function Footer() {
             AI Daily Brief
           </span>
         </div>
-        <p
-          style={{
-            fontSize: '14px',
-            color: '#6B7280',
-            marginBottom: '16px',
-          }}
-        >
+        <p className="footer-desc">
           AI-curated news, delivered twice daily.
         </p>
         <div
@@ -54,11 +42,7 @@ export default function Footer() {
             <a
               key={item}
               href="#"
-              style={{
-                fontSize: '13px',
-                color: '#9CA3AF',
-                textDecoration: 'none',
-              }}
+              className="footer-link"
             >
               {item}
             </a>

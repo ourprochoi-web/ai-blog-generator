@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from backend.app.api.deps import verify_admin_api_key
 from backend.app.db.database import get_supabase_client
 
-router = APIRouter(prefix="/admin")
+router = APIRouter(
+    prefix="/admin",
+    dependencies=[Depends(verify_admin_api_key)],  # Protect all admin routes
+)
 
 
 class ArticleStats(BaseModel):

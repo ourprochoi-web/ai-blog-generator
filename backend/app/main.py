@@ -75,15 +75,25 @@ app = FastAPI(
 )
 
 # CORS middleware
-allowed_origins = (
-    settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else ["*"]
-)
+# In production, set CORS_ORIGINS to your frontend domain(s)
+# Example: CORS_ORIGINS=https://your-blog.vercel.app,https://admin.your-blog.com
+if settings.CORS_ORIGINS:
+    allowed_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
+else:
+    # Development mode: allow all origins but log a warning
+    allowed_origins = ["*"]
+    if settings.APP_ENV == "production":
+        logger.warning(
+            "CORS_ORIGINS not set in production! Set CORS_ORIGINS to restrict access."
+        )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Total-Count", "X-Page", "X-Page-Size"],
 )
 
 # Include routers

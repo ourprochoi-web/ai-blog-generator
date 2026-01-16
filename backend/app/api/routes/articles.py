@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from slugify import slugify
 
+from backend.app.api.deps import verify_admin_api_key
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.article_repo import (
     ArticleRepository,
@@ -241,6 +242,7 @@ def extract_json_from_content(content: str) -> Optional[Dict[str, Any]]:
 @router.post("/fix-nested-json")
 async def fix_nested_json_articles(
     repo: ArticleRepository = Depends(get_article_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Fix all articles that have nested JSON in their content."""
     client = get_supabase_client()
@@ -326,6 +328,7 @@ async def get_article(
 async def create_article(
     article_data: ArticleCreate,
     repo: ArticleRepository = Depends(get_article_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Create a new article manually."""
     # Generate slug if not provided
@@ -371,6 +374,7 @@ async def update_article(
     article_data: ArticleUpdate,
     repo: ArticleRepository = Depends(get_article_repo),
     version_repo: ArticleVersionRepository = Depends(get_version_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Update an article."""
     existing = await repo.get_by_id(str(article_id))
@@ -406,6 +410,7 @@ async def update_article(
 async def delete_article(
     article_id: UUID,
     repo: ArticleRepository = Depends(get_article_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Delete an article."""
     existing = await repo.get_by_id(str(article_id))
@@ -424,6 +429,7 @@ async def update_article_status(
     article_id: UUID,
     status_data: ArticleStatusUpdate,
     repo: ArticleRepository = Depends(get_article_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Update an article's status (publish, archive, etc.)."""
     existing = await repo.get_by_id(str(article_id))
@@ -456,6 +462,7 @@ async def get_article_versions(
 @router.post("/assign-categories")
 async def assign_categories_to_articles(
     repo: ArticleRepository = Depends(get_article_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Assign category tags to existing articles based on their content."""
     CATEGORY_KEYWORDS = {
@@ -545,6 +552,7 @@ async def assign_categories_to_articles(
 async def regenerate_article_image(
     article_id: UUID,
     repo: ArticleRepository = Depends(get_article_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Regenerate hero image for an existing article."""
     import logging

@@ -1,6 +1,11 @@
 'use client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+/**
+ * Admin API Client
+ *
+ * All admin API calls go through Next.js API routes (/api/*) which proxy
+ * to the backend with the API key. This keeps the API key server-side only.
+ */
 
 // Types
 export interface Source {
@@ -49,22 +54,42 @@ export interface PaginatedResponse<T> {
   page_size: number;
 }
 
-// Helper for API calls
+// Helper for API calls (all calls go through internal proxy)
 async function apiCall<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${endpoint}`, {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  // All calls go to internal Next.js API routes (no external API key needed)
+  const res = await fetch(endpoint, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+
+    // Provide more specific error messages for auth failures
+    if (res.status === 401) {
+      throw new Error('Authentication required. Please configure ADMIN_API_KEY on the server.');
+    }
+    if (res.status === 403) {
+      throw new Error('Invalid API key. Access denied.');
+    }
+    if (res.status === 502) {
+      throw new Error('Backend API unavailable. Please check the server.');
+    }
+
     throw new Error(error.detail || `API error: ${res.status}`);
+  }
+
+  // Handle 204 No Content responses
+  if (res.status === 204) {
+    return undefined as T;
   }
 
   return res.json();
@@ -278,35 +303,74 @@ export interface PipelineProgressEvent {
 }
 
 // Stream full pipeline with progress updates
+// Uses internal proxy route which handles API key server-side
 export function streamFullPipeline(
   onProgress: (event: PipelineProgressEvent) => void,
   onError?: (error: Error) => void,
   onComplete?: () => void
 ): () => void {
-  const eventSource = new EventSource(`${API_URL}/api/scheduler/run/stream`);
+  const abortController = new AbortController();
 
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data) as PipelineProgressEvent;
-      onProgress(data);
-
-      // Close connection when done or error
-      if (data.step === 'done' || data.step === 'error') {
-        eventSource.close();
-        onComplete?.();
+  // Use internal proxy route (API key added server-side)
+  fetch('/api/scheduler/run/stream', {
+    headers: {
+      'Accept': 'text/event-stream',
+    },
+    signal: abortController.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Authentication required for pipeline access.');
+        }
+        if (response.status === 502) {
+          throw new Error('Backend API unavailable.');
+        }
+        throw new Error(`HTTP ${response.status}`);
       }
-    } catch {
-      // Ignore parse errors
-    }
-  };
 
-  eventSource.onerror = () => {
-    eventSource.close();
-    onError?.(new Error('Connection lost'));
-  };
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6)) as PipelineProgressEvent;
+              onProgress(data);
+
+              if (data.step === 'done' || data.step === 'error') {
+                onComplete?.();
+                return;
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+      onComplete?.();
+    })
+    .catch((error) => {
+      if (error.name !== 'AbortError') {
+        onError?.(error);
+      }
+    });
 
   // Return cleanup function
-  return () => eventSource.close();
+  return () => abortController.abort();
 }
 
 export async function getSchedulerStatus(): Promise<{

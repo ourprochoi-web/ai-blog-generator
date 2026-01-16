@@ -8,10 +8,11 @@ import logging
 from datetime import datetime
 from typing import AsyncGenerator, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from backend.app.api.deps import verify_admin_api_key
 from backend.app.config import settings
 from backend.app.scheduler.jobs import (
     evaluate_pending_sources,
@@ -24,7 +25,10 @@ from backend.app.scheduler.jobs import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/scheduler")
+router = APIRouter(
+    prefix="/scheduler",
+    dependencies=[Depends(verify_admin_api_key)],  # Protect all scheduler routes
+)
 
 
 class SchedulerStatus(BaseModel):

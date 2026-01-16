@@ -14,6 +14,7 @@ from pydantic import BaseModel, HttpUrl
 
 from datetime import datetime
 
+from backend.app.api.deps import verify_admin_api_key
 from backend.app.config import settings
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.source_repo import SourceRepository
@@ -172,6 +173,7 @@ async def get_source(
 async def create_source(
     source_data: SourceCreate,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Create a new source manually."""
     # Check if URL already exists
@@ -200,6 +202,7 @@ async def create_source(
 async def scrape_source(
     request: ScrapeRequest,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Scrape content from a URL and create a source."""
     url = str(request.url)
@@ -249,6 +252,7 @@ async def update_source(
     source_id: UUID,
     source_data: SourceUpdate,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Update a source."""
     existing = await repo.get_by_id(str(source_id))
@@ -272,6 +276,7 @@ async def update_source(
 async def delete_source(
     source_id: UUID,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Delete a source."""
     existing = await repo.get_by_id(str(source_id))
@@ -290,6 +295,7 @@ async def update_source_status(
     source_id: UUID,
     status_data: SourceStatusUpdate,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Update a source's status."""
     existing = await repo.get_by_id(str(source_id))
@@ -312,6 +318,7 @@ async def update_source_status(
 async def rescrape_source(
     source_id: UUID,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Re-scrape an existing source to update its content."""
     existing = await repo.get_by_id(str(source_id))
@@ -422,6 +429,7 @@ async def update_source_selection(
     source_id: UUID,
     selection_data: SourceSelectionUpdate,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Update a source's selection status."""
     existing = await repo.get_by_id(str(source_id))
@@ -446,6 +454,7 @@ async def update_source_priority(
     source_id: UUID,
     priority_data: SourcePriorityUpdate,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Update a source's priority (0-5)."""
     existing = await repo.get_by_id(str(source_id))
@@ -471,6 +480,7 @@ class BulkSelectionResponse(BaseModel):
 async def bulk_select_sources(
     request: SourceBulkSelectionRequest,
     repo: SourceRepository = Depends(get_source_repo),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Bulk update selection for multiple sources."""
     source_ids = [str(sid) for sid in request.source_ids]
@@ -528,6 +538,7 @@ async def evaluate_source(
     save_to_db: bool = Query(True, description="Save relevance score to database"),
     repo: SourceRepository = Depends(get_source_repo),
     evaluator: SourceEvaluator = Depends(get_evaluator),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Evaluate a source using LLM and optionally update its relevance score."""
     source = await repo.get_by_id(str(source_id))
@@ -578,6 +589,7 @@ async def evaluate_sources_batch(
     request: BulkEvaluationRequest,
     repo: SourceRepository = Depends(get_source_repo),
     evaluator: SourceEvaluator = Depends(get_evaluator),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Evaluate multiple sources in batch."""
     sources = []
@@ -635,6 +647,7 @@ async def evaluate_pending_sources(
     limit: int = Query(10, ge=1, le=50, description="Number of sources to evaluate"),
     repo: SourceRepository = Depends(get_source_repo),
     evaluator: SourceEvaluator = Depends(get_evaluator),
+    _: bool = Depends(verify_admin_api_key),
 ):
     """Evaluate all pending unreviewed sources."""
     # Get unreviewed sources (increased default limit to process all pending)

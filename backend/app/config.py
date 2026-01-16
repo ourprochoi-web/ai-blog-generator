@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     # Slack notifications
     SLACK_WEBHOOK_URL: str = ""  # Slack Incoming Webhook URL
 
+    # Admin authentication
+    ADMIN_API_KEY: str = ""  # API key for admin endpoints (required in production)
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

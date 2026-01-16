@@ -2,7 +2,62 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Article, formatDate, calculateReadTime } from '@/lib/api';
+
+// Placeholder image component with gradient background
+function ImagePlaceholder({ category }: { category: string }) {
+  // Generate gradient based on category
+  const getGradient = (cat: string) => {
+    const gradients: Record<string, string> = {
+      Innovation: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      Business: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+      Analysis: 'linear-gradient(135deg, #ec4899 0%, #9d174d 100%)',
+      Research: 'linear-gradient(135deg, #059669 0%, #065f46 100%)',
+      Default: 'linear-gradient(135deg, #6b7280 0%, #374151 100%)',
+    };
+    return gradients[cat] || gradients.Default;
+  };
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        background: getGradient(category),
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+      }}
+    >
+      {/* Decorative pattern */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: 0.1,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }}
+      />
+      {/* AI icon */}
+      <div
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: '50%',
+          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 24,
+        }}
+      >
+        ⚡
+      </div>
+    </div>
+  );
+}
 
 interface ArticleCardProps {
   article: Article;
@@ -69,44 +124,46 @@ export default function ArticleCard({
         }}
       >
         {/* Image */}
-        {article.og_image_url && (
-          <Link href={`/article/${article.slug}`}>
-            <div
-              className="article-card-image"
-              style={{
-                width: '100%',
-                backgroundColor: '#F3F4F6',
-                overflow: 'hidden',
-                position: 'relative',
-              }}
-            >
-              <img
+        <Link href={`/article/${article.slug}`}>
+          <div
+            className="article-card-image"
+            style={{
+              width: '100%',
+              backgroundColor: '#F3F4F6',
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+          >
+            {article.og_image_url ? (
+              <Image
                 src={article.og_image_url}
-                alt=""
+                alt={article.title}
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
                 style={{
-                  width: '100%',
-                  height: '100%',
                   objectFit: 'cover',
                   transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                   transform: isHovered ? 'scale(1.05)' : 'scale(1)',
                 }}
               />
-              {/* Gradient overlay on hover */}
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: '60px',
-                  background: 'linear-gradient(transparent, rgba(0,0,0,0.1))',
-                  opacity: isHovered ? 1 : 0,
-                  transition: 'opacity 0.3s ease',
-                }}
-              />
-            </div>
-          </Link>
-        )}
+            ) : (
+              <ImagePlaceholder category={category} />
+            )}
+            {/* Gradient overlay on hover */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '60px',
+                background: 'linear-gradient(transparent, rgba(0,0,0,0.1))',
+                opacity: isHovered ? 1 : 0,
+                transition: 'opacity 0.3s ease',
+              }}
+            />
+          </div>
+        </Link>
 
         <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Category & Meta */}

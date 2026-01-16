@@ -86,71 +86,21 @@ export default function AIInsightBox({
             {headline.sub}
           </p>
           {hasStats && (
-            <div
+            <p
               style={{
-                display: 'flex',
-                gap: '16px',
-                marginTop: '12px',
-                flexWrap: 'wrap',
-                alignItems: 'center',
+                fontSize: '13px',
+                lineHeight: '1.6',
+                margin: '12px 0 0 0',
+                color: '#6B7280',
               }}
             >
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#374151',
-                  fontWeight: '500',
-                }}
-              >
-                {totalSources.toLocaleString()} sources
-              </span>
-              <span style={{ color: '#D1D5DB' }}>|</span>
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#6B7280',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span style={{ color: '#3B82F6' }}>●</span> {newsSources} news
-              </span>
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#6B7280',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span style={{ color: '#10B981' }}>●</span> {paperSources} papers
-              </span>
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#6B7280',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span style={{ color: '#F59E0B' }}>●</span> {articleSources} articles
-              </span>
-              <span style={{ color: '#D1D5DB' }}>|</span>
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#6B7280',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                → {storiesSelected} selected
-              </span>
-            </div>
+              AI analyzed{' '}
+              <span style={{ color: '#3B82F6', fontWeight: '500' }}>{newsSources.toLocaleString()} news</span>,{' '}
+              <span style={{ color: '#10B981', fontWeight: '500' }}>{paperSources.toLocaleString()} papers</span>, and{' '}
+              <span style={{ color: '#F59E0B', fontWeight: '500' }}>{articleSources.toLocaleString()} articles</span>{' '}
+              to curate today's{' '}
+              <span style={{ color: '#374151', fontWeight: '600' }}>{storiesSelected} {storiesSelected === 1 ? 'story' : 'stories'}</span>.
+            </p>
           )}
         </div>
       </div>

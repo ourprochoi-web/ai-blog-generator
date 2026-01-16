@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from slugify import slugify
 
+from backend.app.api.deps import verify_admin_api_key
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.article_repo import ArticleRepository
 from backend.app.db.repositories.source_repo import SourceRepository
@@ -19,7 +20,10 @@ from backend.app.schemas.article import ArticlePreviewResponse, ArticleResponse
 from backend.app.services.generators.blog_writer import BlogWriter
 from backend.app.services.generators.reference_validator import ReferenceValidator
 
-router = APIRouter(prefix="/generate")
+router = APIRouter(
+    prefix="/generate",
+    dependencies=[Depends(verify_admin_api_key)],  # Protect generation routes
+)
 
 
 class GenerateRequest(BaseModel):

@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { getArticleBySlug, formatDate, calculateReadTime, Article } from '@/lib/api';
@@ -8,6 +9,61 @@ import remarkGfm from 'remark-gfm';
 import { Metadata } from 'next';
 import ShareButtons from '@/components/ShareButtons';
 import ReadingProgress from '@/components/ReadingProgress';
+
+// Hero placeholder for article detail page
+function HeroPlaceholder({ category }: { category: string }) {
+  const getGradient = (cat: string) => {
+    const gradients: Record<string, string> = {
+      Breakthrough: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      Industry: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+      Regulation: 'linear-gradient(135deg, #ec4899 0%, #9d174d 100%)',
+      Research: 'linear-gradient(135deg, #059669 0%, #065f46 100%)',
+      Innovation: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+      Business: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+      Analysis: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
+    };
+    return gradients[cat] || 'linear-gradient(135deg, #6b7280 0%, #374151 100%)';
+  };
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '300px',
+        background: getGradient(category),
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        borderRadius: '12px',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: 0.15,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='1' fill-rule='evenodd'/%3E%3C/svg%3E")`,
+        }}
+      />
+      <div
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: '50%',
+          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 40,
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        ⚡
+      </div>
+    </div>
+  );
+}
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://aidailybrief.com';
 
@@ -308,25 +364,28 @@ export default async function ArticlePage({ params }: PageProps) {
           </header>
 
           {/* Hero Image */}
-          {article.og_image_url && (
-            <div
-              style={{
-                marginBottom: '40px',
-                borderRadius: '12px',
-                overflow: 'hidden',
-              }}
-            >
-              <img
-                src={article.og_image_url}
-                alt={article.title}
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  display: 'block',
-                }}
-              />
-            </div>
-          )}
+          <div
+            style={{
+              marginBottom: '40px',
+              borderRadius: '12px',
+              overflow: 'hidden',
+            }}
+          >
+            {article.og_image_url ? (
+              <div style={{ position: 'relative', width: '100%', height: '300px' }}>
+                <Image
+                  src={article.og_image_url}
+                  alt={article.title}
+                  fill
+                  sizes="(max-width: 680px) 100vw, 680px"
+                  style={{ objectFit: 'cover' }}
+                  priority
+                />
+              </div>
+            ) : (
+              <HeroPlaceholder category={category} />
+            )}
+          </div>
 
           {/* Divider */}
           <div
