@@ -77,11 +77,21 @@ export default async function DatePage({ params }: PageProps) {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Skip to main content */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       <Suspense fallback={<div style={{ height: 73 }} />}>
         <Header />
       </Suspense>
 
-      <main style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
+      <main
+        id="main-content"
+        role="main"
+        aria-label={`Articles from ${formatDisplayDate(date)}`}
+        style={{ flex: 1, backgroundColor: 'var(--color-bg)' }}
+      >
         <div
           style={{
             maxWidth: '720px',
@@ -104,7 +114,7 @@ export default async function DatePage({ params }: PageProps) {
               style={{
                 fontSize: '28px',
                 fontWeight: '400',
-                color: '#1a1a1a',
+                color: 'var(--color-text)',
                 marginBottom: '8px',
               }}
             >
@@ -127,18 +137,32 @@ export default async function DatePage({ params }: PageProps) {
             <div
               style={{
                 textAlign: 'center',
-                padding: '48px 24px',
-                color: '#6B7280',
+                padding: '64px 24px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                borderRadius: '12px',
+                border: '1px solid var(--color-border)',
               }}
             >
-              <p>No stories were published on this date.</p>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📰</div>
+              <p style={{ fontSize: 18, color: 'var(--color-text)', marginBottom: 8 }}>
+                No stories were published on this date
+              </p>
+              <p style={{ fontSize: 14, color: 'var(--color-text-muted)', marginBottom: 20 }}>
+                Check other dates or go back to today
+              </p>
               <Link
                 href="/"
                 style={{
-                  color: '#2563EB',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '12px 24px',
+                  backgroundColor: 'var(--color-accent)',
+                  color: '#fff',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
                   textDecoration: 'none',
-                  marginTop: '16px',
-                  display: 'inline-block',
                 }}
               >
                 Go to today&apos;s brief →
@@ -148,7 +172,7 @@ export default async function DatePage({ params }: PageProps) {
             <>
               {/* Featured Article - Full Content */}
               {featuredArticle && (
-                <article style={{ marginBottom: '48px' }}>
+                <article style={{ marginBottom: '48px' }} aria-label={`Featured: ${featuredArticle.title}`}>
                   {/* Category & Date */}
                   <div
                     style={{
@@ -172,7 +196,7 @@ export default async function DatePage({ params }: PageProps) {
                     >
                       {featuredCategory}
                     </span>
-                    <span style={{ fontSize: '13px', color: '#6B7280' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
                       {featuredDate} · {featuredReadTime}
                     </span>
                   </div>
@@ -186,7 +210,7 @@ export default async function DatePage({ params }: PageProps) {
                       lineHeight: '1.2',
                       marginBottom: '20px',
                       letterSpacing: '-0.5px',
-                      color: '#1a1a1a',
+                      color: 'var(--color-text)',
                     }}
                   >
                     {featuredArticle.title}
@@ -197,7 +221,7 @@ export default async function DatePage({ params }: PageProps) {
                     <p
                       style={{
                         fontSize: '18px',
-                        color: '#4B5563',
+                        color: 'var(--color-text-secondary)',
                         lineHeight: '1.5',
                         fontWeight: '300',
                         marginBottom: '32px',
@@ -211,7 +235,7 @@ export default async function DatePage({ params }: PageProps) {
                   <div
                     style={{
                       height: '1px',
-                      backgroundColor: '#E5E7EB',
+                      backgroundColor: 'var(--color-border)',
                       margin: '0 0 32px 0',
                     }}
                   />
@@ -229,7 +253,7 @@ export default async function DatePage({ params }: PageProps) {
                       flexWrap: 'wrap',
                       marginTop: '48px',
                       paddingTop: '24px',
-                      borderTop: '1px solid #E5E7EB',
+                      borderTop: '1px solid var(--color-border)',
                     }}
                   >
                     {featuredArticle.tags.map((tag) => (
@@ -237,10 +261,10 @@ export default async function DatePage({ params }: PageProps) {
                         key={tag}
                         style={{
                           padding: '6px 12px',
-                          backgroundColor: '#F3F4F6',
+                          backgroundColor: 'var(--color-bg-tertiary)',
                           borderRadius: '16px',
                           fontSize: '13px',
-                          color: '#4B5563',
+                          color: 'var(--color-text-secondary)',
                         }}
                       >
                         {tag}
@@ -254,15 +278,16 @@ export default async function DatePage({ params }: PageProps) {
                       style={{
                         marginTop: '32px',
                         padding: '24px',
-                        backgroundColor: '#F9FAFB',
+                        backgroundColor: 'var(--color-bg-secondary)',
                         borderRadius: '12px',
+                        border: '1px solid var(--color-border)',
                       }}
                     >
                       <h4
                         style={{
                           fontSize: '12px',
                           fontWeight: '600',
-                          color: '#6B7280',
+                          color: 'var(--color-text-muted)',
                           marginBottom: '12px',
                           textTransform: 'uppercase',
                           letterSpacing: '0.5px',
@@ -276,7 +301,7 @@ export default async function DatePage({ params }: PageProps) {
                             key={index}
                             style={{
                               fontSize: '14px',
-                              color: '#4B5563',
+                              color: 'var(--color-text-secondary)',
                               marginBottom: '8px',
                             }}
                           >
@@ -284,7 +309,7 @@ export default async function DatePage({ params }: PageProps) {
                               href={ref.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{ color: '#2563EB', textDecoration: 'none' }}
+                              style={{ color: 'var(--color-link)', textDecoration: 'none' }}
                             >
                               {ref.title}
                             </a>
@@ -298,11 +323,11 @@ export default async function DatePage({ params }: PageProps) {
 
               {/* Other Articles */}
               {otherArticles.length > 0 && (
-                <>
+                <section aria-label="Other articles from this day">
                   <div
                     style={{
                       height: '1px',
-                      backgroundColor: '#E5E7EB',
+                      backgroundColor: 'var(--color-border)',
                       margin: '32px 0',
                     }}
                   />
@@ -310,7 +335,7 @@ export default async function DatePage({ params }: PageProps) {
                     style={{
                       fontSize: '12px',
                       fontWeight: '600',
-                      color: '#6B7280',
+                      color: 'var(--color-text-muted)',
                       textTransform: 'uppercase',
                       letterSpacing: '1px',
                       marginBottom: '8px',
@@ -321,7 +346,7 @@ export default async function DatePage({ params }: PageProps) {
                   {otherArticles.map((article) => (
                     <ArticleCard key={article.id} article={article} />
                   ))}
-                </>
+                </section>
               )}
             </>
           )}

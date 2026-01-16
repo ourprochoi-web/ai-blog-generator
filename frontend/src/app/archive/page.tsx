@@ -79,11 +79,21 @@ export default async function ArchivePage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Skip to main content */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       <Suspense fallback={<div style={{ height: 73 }} />}>
         <Header />
       </Suspense>
 
-      <main style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
+      <main
+        id="main-content"
+        role="main"
+        aria-label="Archive"
+        style={{ flex: 1, backgroundColor: 'var(--color-bg)' }}
+      >
         <div
           style={{
             maxWidth: '720px',
@@ -98,7 +108,7 @@ export default async function ArchivePage() {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
               fontSize: '14px',
               textDecoration: 'none',
               marginBottom: '32px',
@@ -114,7 +124,7 @@ export default async function ArchivePage() {
               fontSize: '36px',
               fontWeight: '400',
               marginBottom: '12px',
-              color: '#1a1a1a',
+              color: 'var(--color-text)',
             }}
           >
             Archive
@@ -122,7 +132,7 @@ export default async function ArchivePage() {
           <p
             style={{
               fontSize: '16px',
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
               marginBottom: '40px',
             }}
           >
@@ -131,63 +141,100 @@ export default async function ArchivePage() {
 
           {/* Archive List */}
           {monthKeys.length === 0 ? (
-            <p style={{ color: '#6B7280' }}>No archived articles yet.</p>
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '64px 24px',
+                backgroundColor: 'var(--color-bg-secondary)',
+                borderRadius: '12px',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
+              <p style={{ fontSize: 18, color: 'var(--color-text)', marginBottom: 8 }}>
+                No archived articles yet
+              </p>
+              <p style={{ fontSize: 14, color: 'var(--color-text-muted)', marginBottom: 20 }}>
+                Check back later for past editions
+              </p>
+              <Link
+                href="/"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '12px 24px',
+                  backgroundColor: 'var(--color-accent)',
+                  color: '#fff',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                }}
+              >
+                View today&apos;s brief
+              </Link>
+            </div>
           ) : (
-            monthKeys.map((monthKey) => (
-              <div key={monthKey} style={{ marginBottom: '40px' }}>
-                <h2
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#6B7280',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    marginBottom: '16px',
-                    paddingBottom: '8px',
-                    borderBottom: '1px solid #E5E7EB',
-                  }}
-                >
-                  {monthKey}
-                </h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {groupedByMonth[monthKey].map((dg) => (
-                    <Link
-                      key={dg.date}
-                      href={`/date/${dg.date}`}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '16px',
-                        backgroundColor: '#fff',
-                        borderRadius: '8px',
-                        border: '1px solid #E5E7EB',
-                        textDecoration: 'none',
-                        transition: 'border-color 0.2s',
-                      }}
-                    >
-                      <span
+            <nav aria-label="Archive by month">
+              {monthKeys.map((monthKey) => (
+                <section key={monthKey} style={{ marginBottom: '40px' }} aria-label={monthKey}>
+                  <h2
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: 'var(--color-text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px',
+                      marginBottom: '16px',
+                      paddingBottom: '8px',
+                      borderBottom: '1px solid var(--color-border)',
+                    }}
+                  >
+                    {monthKey}
+                  </h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {groupedByMonth[monthKey].map((dg) => (
+                      <Link
+                        key={dg.date}
+                        href={`/date/${dg.date}`}
+                        className="archive-date-card"
+                        aria-label={`${dg.displayDate}, ${dg.articleCount} ${dg.articleCount === 1 ? 'story' : 'stories'}`}
                         style={{
-                          fontSize: '15px',
-                          color: '#1a1a1a',
-                          fontWeight: '500',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '16px',
+                          backgroundColor: 'var(--color-card-bg)',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border)',
+                          textDecoration: 'none',
+                          transition: 'all 0.2s ease',
                         }}
                       >
-                        {dg.displayDate}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '13px',
-                          color: '#6B7280',
-                        }}
-                      >
-                        {dg.articleCount} {dg.articleCount === 1 ? 'story' : 'stories'}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))
+                        <span
+                          style={{
+                            fontSize: '15px',
+                            color: 'var(--color-text)',
+                            fontWeight: '500',
+                          }}
+                        >
+                          {dg.displayDate}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '13px',
+                            color: 'var(--color-text-muted)',
+                          }}
+                        >
+                          {dg.articleCount} {dg.articleCount === 1 ? 'story' : 'stories'}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </nav>
           )}
         </div>
       </main>
