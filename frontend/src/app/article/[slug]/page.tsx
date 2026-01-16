@@ -262,7 +262,7 @@ export default async function ArticlePage({ params }: PageProps) {
         <Header initialEdition={article.edition || 'morning'} />
       </Suspense>
 
-      <main style={{ flex: 1, backgroundColor: '#FAFAF9' }}>
+      <main style={{ flex: 1, backgroundColor: 'var(--color-bg)' }}>
         <div
           style={{
             maxWidth: '680px',
@@ -277,7 +277,7 @@ export default async function ArticlePage({ params }: PageProps) {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
               fontSize: '14px',
               textDecoration: 'none',
               marginBottom: '32px',
@@ -318,17 +318,17 @@ export default async function ArticlePage({ params }: PageProps) {
                     alignItems: 'center',
                     gap: '4px',
                     fontSize: '13px',
-                    color: '#6B7280',
+                    color: 'var(--color-text-muted)',
                   }}
                 >
                   {editionIcon} {editionLabel}
                 </span>
               )}
-              <span style={{ color: '#D1D5DB' }}>·</span>
+              <span style={{ color: 'var(--color-border)' }}>·</span>
               <span
                 style={{
                   fontSize: '13px',
-                  color: '#6B7280',
+                  color: 'var(--color-text-muted)',
                 }}
               >
                 {date} · {readTime}
@@ -343,7 +343,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 lineHeight: '1.2',
                 marginBottom: '20px',
                 letterSpacing: '-1px',
-                color: '#1a1a1a',
+                color: 'var(--color-text)',
               }}
             >
               {article.title}
@@ -353,7 +353,7 @@ export default async function ArticlePage({ params }: PageProps) {
               <p
                 style={{
                   fontSize: '20px',
-                  color: '#4B5563',
+                  color: 'var(--color-text-secondary)',
                   lineHeight: '1.5',
                   fontWeight: '300',
                 }}
@@ -391,7 +391,7 @@ export default async function ArticlePage({ params }: PageProps) {
           <div
             style={{
               height: '1px',
-              backgroundColor: '#E5E7EB',
+              backgroundColor: 'var(--color-border)',
               margin: '0 0 40px 0',
             }}
           />
@@ -409,7 +409,7 @@ export default async function ArticlePage({ params }: PageProps) {
               flexWrap: 'wrap',
               marginTop: '48px',
               paddingTop: '24px',
-              borderTop: '1px solid #E5E7EB',
+              borderTop: '1px solid var(--color-border)',
             }}
           >
             {article.tags.map((tag) => (
@@ -417,10 +417,10 @@ export default async function ArticlePage({ params }: PageProps) {
                 key={tag}
                 style={{
                   padding: '6px 12px',
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: 'var(--color-bg-tertiary)',
                   borderRadius: '16px',
                   fontSize: '13px',
-                  color: '#4B5563',
+                  color: 'var(--color-text-secondary)',
                 }}
               >
                 {tag}
@@ -434,15 +434,16 @@ export default async function ArticlePage({ params }: PageProps) {
               style={{
                 marginTop: '32px',
                 padding: '24px',
-                backgroundColor: '#F9FAFB',
+                backgroundColor: 'var(--color-bg-secondary)',
                 borderRadius: '12px',
+                border: '1px solid var(--color-border)',
               }}
             >
               <h4
                 style={{
                   fontSize: '12px',
                   fontWeight: '600',
-                  color: '#6B7280',
+                  color: 'var(--color-text-muted)',
                   marginBottom: '12px',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
@@ -462,7 +463,7 @@ export default async function ArticlePage({ params }: PageProps) {
                     key={index}
                     style={{
                       fontSize: '14px',
-                      color: '#4B5563',
+                      color: 'var(--color-text-secondary)',
                       marginBottom: '8px',
                     }}
                   >
@@ -470,7 +471,7 @@ export default async function ArticlePage({ params }: PageProps) {
                       href={ref.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: '#2563EB', textDecoration: 'none' }}
+                      style={{ color: 'var(--color-link)', textDecoration: 'none' }}
                     >
                       {ref.title}
                     </a>
@@ -491,7 +492,7 @@ export default async function ArticlePage({ params }: PageProps) {
               alignItems: 'center',
               marginTop: '48px',
               paddingTop: '24px',
-              borderTop: '1px solid #E5E7EB',
+              borderTop: '1px solid var(--color-border)',
             }}
           >
             <Link
@@ -500,10 +501,10 @@ export default async function ArticlePage({ params }: PageProps) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                color: '#1a1a1a',
+                color: 'var(--color-text)',
                 fontSize: '14px',
                 fontWeight: '500',
-                border: '1px solid #E5E7EB',
+                border: '1px solid var(--color-border)',
                 borderRadius: '8px',
                 padding: '10px 16px',
                 textDecoration: 'none',

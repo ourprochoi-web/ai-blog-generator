@@ -157,6 +157,7 @@ a {
 
 .article-content li {
   margin-bottom: 12px;
+  color: var(--color-text-secondary);
 }
 
 .article-content a {
