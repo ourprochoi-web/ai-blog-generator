@@ -114,6 +114,29 @@ export async function proxyToBackend(
 }
 
 /**
+ * Create simple route handlers for base endpoints (no path params)
+ */
+export function createBaseProxyHandlers(basePath: string) {
+  return {
+    GET: async (request: NextRequest) => {
+      return proxyToBackend(request, basePath, 'GET');
+    },
+    POST: async (request: NextRequest) => {
+      return proxyToBackend(request, basePath, 'POST');
+    },
+    PUT: async (request: NextRequest) => {
+      return proxyToBackend(request, basePath, 'PUT');
+    },
+    PATCH: async (request: NextRequest) => {
+      return proxyToBackend(request, basePath, 'PATCH');
+    },
+    DELETE: async (request: NextRequest) => {
+      return proxyToBackend(request, basePath, 'DELETE');
+    },
+  };
+}
+
+/**
  * Create route handlers for a proxied endpoint
  */
 export function createProxyHandlers(pathPrefix: string) {
