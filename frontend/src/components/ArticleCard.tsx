@@ -311,6 +311,33 @@ export default function ArticleCard({
           </span>
         </div>
 
+        {/* Hero Image */}
+        {article.og_image_url && (
+          <Link href={`/article/${article.slug}`}>
+            <div
+              style={{
+                width: '100%',
+                aspectRatio: '16/9',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                marginBottom: '20px',
+                position: 'relative',
+              }}
+            >
+              <Image
+                src={article.og_image_url}
+                alt={article.title}
+                fill
+                sizes="(max-width: 1000px) 100vw, 1000px"
+                style={{
+                  objectFit: 'cover',
+                }}
+                priority
+              />
+            </div>
+          </Link>
+        )}
+
         <Link href={`/article/${article.slug}`} style={{ textDecoration: 'none' }}>
           {/* Title */}
           <h2
