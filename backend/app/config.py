@@ -61,6 +61,8 @@ SCRAPE_SOURCES = {
         "cs.AI",   # Artificial Intelligence
         "cs.LG",   # Machine Learning
         "cs.CL",   # Computation and Language (NLP)
+        "cs.CV",   # Computer Vision
+        "stat.ML", # Statistics - Machine Learning
     ],
     # RSS 피드
     "rss_feeds": [
@@ -121,6 +123,43 @@ SCRAPE_SOURCES = {
         {
             "name": "Microsoft AI News",
             "url": "https://news.microsoft.com/source/topics/ai/feed/",
+        },
+        # Phase 1 확장 피드 (2026-01-17 추가)
+        {
+            "name": "BAIR Blog",
+            "url": "https://bair.berkeley.edu/blog/feed.xml",
+        },
+        {
+            "name": "MarkTechPost",
+            "url": "https://www.marktechpost.com/feed",
+        },
+        {
+            "name": "The Gradient",
+            "url": "https://thegradient.pub/rss/",
+        },
+        {
+            "name": "Ahead of AI",
+            "url": "https://magazine.sebastianraschka.com/feed",
+        },
+        {
+            "name": "Last Week in AI",
+            "url": "https://lastweekin.ai/feed",
+        },
+        {
+            "name": "AWS ML Blog",
+            "url": "https://aws.amazon.com/blogs/machine-learning/feed",
+        },
+        {
+            "name": "Microsoft Research",
+            "url": "https://www.microsoft.com/en-us/research/feed",
+        },
+        {
+            "name": "Science Daily AI",
+            "url": "https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml",
+        },
+        {
+            "name": "MIT News AI",
+            "url": "https://news.mit.edu/rss/topic/artificial-intelligence2",
         },
     ],
 }
