@@ -275,43 +275,7 @@ export default function ArticleCard({
         aria-label={`Featured: ${article.title} - ${category} - ${readTime}`}
         style={{ marginBottom: '48px' }}
       >
-        {/* Category & Date */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '16px',
-          }}
-        >
-          <button
-            onClick={() => onCategoryClick?.(category)}
-            style={{
-              padding: '4px 10px',
-              backgroundColor: categoryStyle.bg,
-              color: categoryStyle.color,
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {category}
-          </button>
-          <span
-            style={{
-              fontSize: '13px',
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            {date} · {readTime}
-          </span>
-        </div>
-
-        {/* Hero Image */}
+        {/* Hero Image - First */}
         {article.og_image_url && (
           <Link href={`/article/${article.slug}`}>
             <div
@@ -338,6 +302,42 @@ export default function ArticleCard({
           </Link>
         )}
 
+        {/* Category & Read Time */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '12px',
+          }}
+        >
+          <button
+            onClick={() => onCategoryClick?.(category)}
+            style={{
+              padding: '4px 10px',
+              backgroundColor: categoryStyle.bg,
+              color: categoryStyle.color,
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {category}
+          </button>
+          <span
+            style={{
+              fontSize: '13px',
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            {readTime}
+          </span>
+        </div>
+
         <Link href={`/article/${article.slug}`} style={{ textDecoration: 'none' }}>
           {/* Title */}
           <h2
@@ -345,7 +345,7 @@ export default function ArticleCard({
             style={{
               fontWeight: '400',
               lineHeight: '1.25',
-              marginBottom: '16px',
+              marginBottom: '12px',
               letterSpacing: '-0.5px',
               color: 'var(--color-text)',
             }}
@@ -371,11 +371,11 @@ export default function ArticleCard({
           {/* Read More */}
           <div
             style={{
-              marginTop: '20px',
+              marginTop: '16px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              color: 'var(--color-text)',
+              color: 'var(--color-link)',
               fontSize: '14px',
               fontWeight: '500',
             }}
