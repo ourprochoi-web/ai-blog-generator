@@ -692,27 +692,98 @@ export default function SourcesPage() {
       )}
 
       {/* Pagination */}
-      {!isLoading && total > 20 && (
-        <div style={styles.pagination}>
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            style={styles.pageButton}
-          >
-            Previous
-          </button>
-          <span style={styles.pageInfo}>
-            Page {page} of {Math.ceil(total / 20)}
-          </span>
-          <button
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page >= Math.ceil(total / 20)}
-            style={styles.pageButton}
-          >
-            Next
-          </button>
-        </div>
-      )}
+      {!isLoading && total > 20 && (() => {
+        const totalPages = Math.ceil(total / 20);
+        const getPageNumbers = () => {
+          const pages: (number | string)[] = [];
+          if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+          } else {
+            pages.push(1);
+            if (page > 3) pages.push('...');
+            for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+              pages.push(i);
+            }
+            if (page < totalPages - 2) pages.push('...');
+            pages.push(totalPages);
+          }
+          return pages;
+        };
+
+        return (
+          <div style={styles.pagination}>
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              style={styles.pageButton}
+              title="First page"
+            >
+              ««
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              style={styles.pageButton}
+            >
+              «
+            </button>
+
+            {getPageNumbers().map((p, idx) => (
+              typeof p === 'number' ? (
+                <button
+                  key={idx}
+                  onClick={() => setPage(p)}
+                  style={{
+                    ...styles.pageNumber,
+                    ...(p === page ? styles.pageNumberActive : {}),
+                  }}
+                >
+                  {p}
+                </button>
+              ) : (
+                <span key={idx} style={styles.pageEllipsis}>{p}</span>
+              )
+            ))}
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              style={styles.pageButton}
+            >
+              »
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+              style={styles.pageButton}
+              title="Last page"
+            >
+              »»
+            </button>
+
+            <span style={styles.pageJump}>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                placeholder="Go"
+                style={styles.pageJumpInput}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const target = e.target as HTMLInputElement;
+                    const value = parseInt(target.value);
+                    if (value >= 1 && value <= totalPages) {
+                      setPage(value);
+                      target.value = '';
+                    }
+                  }
+                }}
+              />
+              <span style={styles.pageJumpLabel}>/ {totalPages}</span>
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Scrape Modal */}
       {showScrapeModal && (
@@ -1150,17 +1221,57 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: 4,
     marginTop: 24,
+    flexWrap: 'wrap',
   },
   pageButton: {
-    padding: '8px 16px',
+    padding: '6px 10px',
     fontSize: 14,
     color: '#374151',
     backgroundColor: 'white',
     border: '1px solid #E5E7EB',
     borderRadius: 6,
     cursor: 'pointer',
+    minWidth: 36,
+  },
+  pageNumber: {
+    padding: '6px 12px',
+    fontSize: 14,
+    color: '#374151',
+    backgroundColor: 'white',
+    border: '1px solid #E5E7EB',
+    borderRadius: 6,
+    cursor: 'pointer',
+    minWidth: 36,
+  },
+  pageNumberActive: {
+    backgroundColor: '#3B82F6',
+    color: 'white',
+    borderColor: '#3B82F6',
+  },
+  pageEllipsis: {
+    padding: '6px 8px',
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  pageJump: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 12,
+  },
+  pageJumpInput: {
+    width: 50,
+    padding: '6px 8px',
+    fontSize: 14,
+    border: '1px solid #E5E7EB',
+    borderRadius: 6,
+    textAlign: 'center',
+  },
+  pageJumpLabel: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   pageInfo: {
     fontSize: 14,
