@@ -191,3 +191,25 @@ ALTER TABLE articles ADD COLUMN IF NOT EXISTS hero_image_requested_at TIMESTAMP 
 
 CREATE INDEX IF NOT EXISTS idx_articles_hero_image_status ON articles(hero_image_status)
     WHERE hero_image_status = 'pending';
+
+-- =====================================================
+-- Performance Optimization Indexes
+-- Added for commonly used query patterns
+-- =====================================================
+
+-- Sources: For pending evaluation queries (reviewed_at IS NULL AND status = 'pending')
+CREATE INDEX IF NOT EXISTS idx_sources_pending_review ON sources(status, reviewed_at)
+    WHERE reviewed_at IS NULL AND status = 'pending';
+
+-- Sources: For listing with pagination by scraped_at
+CREATE INDEX IF NOT EXISTS idx_sources_status_scraped ON sources(status, scraped_at DESC);
+
+-- Articles: For listing by status with pagination
+CREATE INDEX IF NOT EXISTS idx_articles_status_created ON articles(status, created_at DESC);
+
+-- Articles: For public listing (published articles by date)
+CREATE INDEX IF NOT EXISTS idx_articles_published_listing ON articles(status, published_at DESC)
+    WHERE status = 'published';
+
+-- Activity logs: For recent logs query
+CREATE INDEX IF NOT EXISTS idx_activity_logs_type_created ON activity_logs(type, created_at DESC);

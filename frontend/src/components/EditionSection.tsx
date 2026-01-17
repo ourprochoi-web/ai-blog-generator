@@ -33,7 +33,7 @@ export default function EditionSection({
       Regulation: { bg: '#FCE7F3', color: '#9D174D' },
       Research: { bg: '#D1FAE5', color: '#065F46' },
     };
-    return styles[category] || { bg: '#F3F4F6', color: '#374151' };
+    return styles[category] || { bg: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' };
   };
 
   const featuredCategory = featuredArticle.tags[0]?.replace('#', '') || 'AI News';
@@ -57,7 +57,7 @@ export default function EditionSection({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '16px 20px',
-          backgroundColor: isLatest ? editionBgColor : '#F9FAFB',
+          backgroundColor: isLatest ? editionBgColor : 'var(--color-bg-tertiary)',
           border: 'none',
           borderRadius: '12px',
           cursor: isLatest ? 'default' : 'pointer',
@@ -72,7 +72,7 @@ export default function EditionSection({
               style={{
                 fontSize: 18,
                 fontWeight: 600,
-                color: '#111827',
+                color: isLatest ? '#111827' : 'var(--color-text)',
                 margin: 0,
               }}
             >
@@ -81,7 +81,7 @@ export default function EditionSection({
             <p
               style={{
                 fontSize: 13,
-                color: '#6B7280',
+                color: isLatest ? '#6B7280' : 'var(--color-text-muted)',
                 margin: 0,
               }}
             >
@@ -94,11 +94,11 @@ export default function EditionSection({
           <span
             style={{
               fontSize: 14,
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
               padding: '6px 12px',
-              backgroundColor: 'white',
+              backgroundColor: 'var(--color-card-bg)',
               borderRadius: 6,
-              border: '1px solid #E5E7EB',
+              border: '1px solid var(--color-border)',
             }}
           >
             {isExpanded ? 'Collapse' : 'Expand'}
@@ -137,7 +137,7 @@ export default function EditionSection({
               <span
                 style={{
                   fontSize: '13px',
-                  color: '#6B7280',
+                  color: 'var(--color-text-muted)',
                 }}
               >
                 {featuredDate} · {featuredReadTime}
@@ -153,7 +153,7 @@ export default function EditionSection({
                 lineHeight: '1.2',
                 marginBottom: '20px',
                 letterSpacing: '-1px',
-                color: '#1a1a1a',
+                color: 'var(--color-text)',
               }}
             >
               {featuredArticle.title}
@@ -164,7 +164,7 @@ export default function EditionSection({
               <p
                 style={{
                   fontSize: '20px',
-                  color: '#4B5563',
+                  color: 'var(--color-text-secondary)',
                   lineHeight: '1.5',
                   fontWeight: '300',
                   marginBottom: '32px',
@@ -178,7 +178,7 @@ export default function EditionSection({
             <div
               style={{
                 height: '1px',
-                backgroundColor: '#E5E7EB',
+                backgroundColor: 'var(--color-border)',
                 margin: '0 0 32px 0',
               }}
             />
@@ -217,7 +217,7 @@ export default function EditionSection({
                 flexWrap: 'wrap',
                 marginTop: '48px',
                 paddingTop: '24px',
-                borderTop: '1px solid #E5E7EB',
+                borderTop: '1px solid var(--color-border)',
               }}
             >
               {featuredArticle.tags.map((tag) => (
@@ -225,10 +225,10 @@ export default function EditionSection({
                   key={tag}
                   style={{
                     padding: '6px 12px',
-                    backgroundColor: '#F3F4F6',
+                    backgroundColor: 'var(--color-bg-tertiary)',
                     borderRadius: '16px',
                     fontSize: '13px',
-                    color: '#4B5563',
+                    color: 'var(--color-text-secondary)',
                   }}
                 >
                   {tag}
@@ -242,7 +242,7 @@ export default function EditionSection({
                 style={{
                   marginTop: '32px',
                   padding: '24px',
-                  backgroundColor: '#F9FAFB',
+                  backgroundColor: 'var(--color-bg-tertiary)',
                   borderRadius: '12px',
                 }}
               >
@@ -250,7 +250,7 @@ export default function EditionSection({
                   style={{
                     fontSize: '12px',
                     fontWeight: '600',
-                    color: '#6B7280',
+                    color: 'var(--color-text-muted)',
                     marginBottom: '12px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
@@ -270,7 +270,7 @@ export default function EditionSection({
                       key={index}
                       style={{
                         fontSize: '14px',
-                        color: '#4B5563',
+                        color: 'var(--color-text-secondary)',
                         marginBottom: '8px',
                       }}
                     >
@@ -278,7 +278,7 @@ export default function EditionSection({
                         href={ref.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: '#2563EB', textDecoration: 'none' }}
+                        style={{ color: 'var(--color-link)', textDecoration: 'none' }}
                       >
                         {ref.title}
                       </a>
@@ -295,7 +295,7 @@ export default function EditionSection({
               <div
                 style={{
                   height: '1px',
-                  backgroundColor: '#E5E7EB',
+                  backgroundColor: 'var(--color-border)',
                   margin: '32px 0',
                 }}
               />
@@ -303,7 +303,7 @@ export default function EditionSection({
                 style={{
                   fontSize: '12px',
                   fontWeight: '600',
-                  color: '#6B7280',
+                  color: 'var(--color-text-muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '1px',
                   marginBottom: '8px',
