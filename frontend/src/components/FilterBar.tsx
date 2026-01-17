@@ -38,7 +38,7 @@ export default function FilterBar({
         gap: '16px',
         padding: '16px 0',
         marginBottom: '24px',
-        borderBottom: '1px solid #E5E7EB',
+        borderBottom: '1px solid var(--color-border)',
         flexWrap: 'wrap',
       }}
     >
@@ -55,13 +55,13 @@ export default function FilterBar({
               style={{
                 padding: '8px 16px',
                 borderRadius: '20px',
-                border: isActive ? 'none' : '1px solid #E5E7EB',
+                border: isActive ? 'none' : '1px solid var(--color-border)',
                 backgroundColor: isActive
-                  ? cat.bg || '#1a1a1a'
-                  : '#fff',
+                  ? cat.bg || 'var(--color-text)'
+                  : 'var(--color-card-bg)',
                 color: isActive
-                  ? cat.color || '#fff'
-                  : '#6B7280',
+                  ? cat.color || 'var(--color-bg)'
+                  : 'var(--color-text-muted)',
                 fontSize: '13px',
                 fontWeight: '500',
                 cursor: 'pointer',
@@ -84,10 +84,10 @@ export default function FilterBar({
               alignItems: 'center',
               gap: '8px',
               padding: '6px 12px',
-              backgroundColor: '#F3F4F6',
+              backgroundColor: 'var(--color-bg-tertiary)',
               borderRadius: '16px',
               fontSize: '13px',
-              color: '#374151',
+              color: 'var(--color-text-secondary)',
             }}
           >
             <span>#{activeTag}</span>
@@ -99,7 +99,7 @@ export default function FilterBar({
                 border: 'none',
                 cursor: 'pointer',
                 fontSize: '16px',
-                color: '#9CA3AF',
+                color: 'var(--color-text-light)',
                 padding: 0,
                 lineHeight: 1,
               }}
@@ -121,11 +121,13 @@ export default function FilterBar({
               autoFocus
               style={{
                 padding: '8px 12px',
-                border: '1px solid #E5E7EB',
+                border: '1px solid var(--color-border)',
                 borderRadius: '8px',
                 fontSize: '14px',
                 width: '180px',
                 outline: 'none',
+                backgroundColor: 'var(--color-card-bg)',
+                color: 'var(--color-text)',
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
@@ -145,7 +147,7 @@ export default function FilterBar({
                 border: 'none',
                 cursor: 'pointer',
                 fontSize: '18px',
-                color: '#9CA3AF',
+                color: 'var(--color-text-light)',
                 padding: '4px',
               }}
             >
@@ -158,14 +160,14 @@ export default function FilterBar({
             aria-label="Open search"
             style={{
               background: 'none',
-              border: '1px solid #E5E7EB',
+              border: '1px solid var(--color-border)',
               borderRadius: '8px',
               cursor: 'pointer',
               padding: '8px 12px',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
               fontSize: '13px',
             }}
           >

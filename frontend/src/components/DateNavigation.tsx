@@ -51,9 +51,9 @@ export default function DateNavigation({
         justifyContent: 'space-between',
         marginBottom: '24px',
         padding: '12px 16px',
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--color-card-bg)',
         borderRadius: '8px',
-        border: '1px solid #E5E7EB',
+        border: '1px solid var(--color-border)',
       }}
     >
       {/* Previous / Archive */}
@@ -65,7 +65,7 @@ export default function DateNavigation({
             alignItems: 'center',
             gap: '6px',
             fontSize: '14px',
-            color: '#6B7280',
+            color: 'var(--color-text-muted)',
             textDecoration: 'none',
           }}
         >
@@ -80,7 +80,7 @@ export default function DateNavigation({
             alignItems: 'center',
             gap: '6px',
             fontSize: '14px',
-            color: '#9CA3AF',
+            color: 'var(--color-text-light)',
             textDecoration: 'none',
           }}
         >
@@ -94,7 +94,7 @@ export default function DateNavigation({
         style={{
           fontSize: '14px',
           fontWeight: '600',
-          color: '#1a1a1a',
+          color: 'var(--color-text)',
         }}
       >
         {formatDisplayDate(currentDate)}
@@ -109,7 +109,7 @@ export default function DateNavigation({
             alignItems: 'center',
             gap: '6px',
             fontSize: '14px',
-            color: '#6B7280',
+            color: 'var(--color-text-muted)',
             textDecoration: 'none',
           }}
         >
@@ -124,7 +124,7 @@ export default function DateNavigation({
             alignItems: 'center',
             gap: '6px',
             fontSize: '14px',
-            color: '#6B7280',
+            color: 'var(--color-text-muted)',
             textDecoration: 'none',
           }}
         >

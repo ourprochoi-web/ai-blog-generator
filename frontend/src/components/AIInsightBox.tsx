@@ -34,8 +34,8 @@ export default function AIInsightBox({
   return (
     <div
       style={{
-        backgroundColor: '#F9FAFB',
-        border: '1px solid #E5E7EB',
+        backgroundColor: 'var(--color-bg-tertiary)',
+        border: '1px solid var(--color-border)',
         borderRadius: '12px',
         padding: '20px 24px',
         marginBottom: '40px',
@@ -69,7 +69,7 @@ export default function AIInsightBox({
               fontSize: '17px',
               lineHeight: '1.5',
               margin: 0,
-              color: '#1a1a1a',
+              color: 'var(--color-text)',
               fontWeight: '500',
             }}
           >
@@ -80,7 +80,7 @@ export default function AIInsightBox({
               fontSize: '15px',
               lineHeight: '1.5',
               margin: '4px 0 0 0',
-              color: '#4B5563',
+              color: 'var(--color-text-secondary)',
             }}
           >
             {headline.sub}
@@ -91,7 +91,7 @@ export default function AIInsightBox({
                 fontSize: '13px',
                 lineHeight: '1.6',
                 margin: '12px 0 0 0',
-                color: '#6B7280',
+                color: 'var(--color-text-muted)',
               }}
             >
               AI analyzed{' '}
@@ -99,7 +99,7 @@ export default function AIInsightBox({
               <span style={{ color: '#10B981', fontWeight: '500' }}>{paperSources.toLocaleString()} papers</span>, and{' '}
               <span style={{ color: '#F59E0B', fontWeight: '500' }}>{articleSources.toLocaleString()} articles</span>{' '}
               to curate today's{' '}
-              <span style={{ color: '#374151', fontWeight: '600' }}>{storiesSelected} {storiesSelected === 1 ? 'story' : 'stories'}</span>.
+              <span style={{ color: 'var(--color-text-secondary)', fontWeight: '600' }}>{storiesSelected} {storiesSelected === 1 ? 'story' : 'stories'}</span>.
             </p>
           )}
         </div>

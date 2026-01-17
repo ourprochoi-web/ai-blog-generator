@@ -171,7 +171,7 @@ function HomeContentInner({
         aria-label={`${editionLabel} articles`}
         style={{
           flex: 1,
-          backgroundColor: '#FAFAF9',
+          backgroundColor: 'var(--color-bg)',
         }}
       >
         <div
@@ -204,7 +204,7 @@ function HomeContentInner({
             style={{
               marginBottom: 16,
               paddingBottom: 16,
-              borderBottom: '2px solid #1a1a1a',
+              borderBottom: '2px solid var(--color-text)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -214,13 +214,13 @@ function HomeContentInner({
                   className="font-serif edition-header-title"
                   style={{
                     fontWeight: 600,
-                    color: '#1a1a1a',
+                    color: 'var(--color-text)',
                     margin: 0,
                   }}
                 >
                   {editionLabel}
                 </h2>
-                <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
+                <p style={{ fontSize: 14, color: 'var(--color-text-muted)', margin: 0 }}>
                   {hasActiveFilter
                     ? `${displayArticles.length} of ${baseArticles.length} stories`
                     : `${displayArticles.length} ${displayArticles.length === 1 ? 'story' : 'stories'}`}
@@ -241,11 +241,11 @@ function HomeContentInner({
                   alignItems: 'center',
                   gap: 6,
                   padding: '8px 14px',
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: 'var(--color-bg-tertiary)',
                   border: 'none',
                   borderRadius: 20,
                   fontSize: 13,
-                  color: '#4B5563',
+                  color: 'var(--color-text-secondary)',
                   cursor: 'pointer',
                 }}
               >
@@ -284,7 +284,7 @@ function HomeContentInner({
                   <div
                     style={{
                       height: 1,
-                      backgroundColor: '#E5E7EB',
+                      backgroundColor: 'var(--color-border)',
                       margin: '32px 0 24px 0',
                     }}
                   />
@@ -293,7 +293,7 @@ function HomeContentInner({
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
-                      color: '#6B7280',
+                      color: 'var(--color-text-muted)',
                       textTransform: 'uppercase',
                       letterSpacing: 1,
                       marginBottom: 16,
@@ -321,23 +321,23 @@ function HomeContentInner({
               style={{
                 textAlign: 'center',
                 padding: '64px 24px',
-                backgroundColor: '#fff',
+                backgroundColor: 'var(--color-card-bg)',
                 borderRadius: 12,
-                border: '1px solid #E5E7EB',
+                border: '1px solid var(--color-border)',
               }}
             >
               {hasActiveFilter ? (
                 <>
-                  <p style={{ fontSize: 18, marginBottom: 8, color: '#374151' }}>No stories match your filters</p>
-                  <p style={{ fontSize: 14, marginBottom: 16, color: '#6B7280' }}>Try adjusting your search or category filter</p>
+                  <p style={{ fontSize: 18, marginBottom: 8, color: 'var(--color-text-secondary)' }}>No stories match your filters</p>
+                  <p style={{ fontSize: 14, marginBottom: 16, color: 'var(--color-text-muted)' }}>Try adjusting your search or category filter</p>
                 </>
               ) : (
                 <>
                   <div style={{ fontSize: 48, marginBottom: 16 }}>
                     {edition === 'morning' ? '🌅' : '🌙'}
                   </div>
-                  <p style={{ fontSize: 18, marginBottom: 8, color: '#374151' }}>No stories in {edition} edition yet</p>
-                  <p style={{ fontSize: 14, marginBottom: 20, color: '#6B7280' }}>
+                  <p style={{ fontSize: 18, marginBottom: 8, color: 'var(--color-text-secondary)' }}>No stories in {edition} edition yet</p>
+                  <p style={{ fontSize: 14, marginBottom: 20, color: 'var(--color-text-muted)' }}>
                     {otherArticles.length > 0
                       ? `But there ${otherArticles.length === 1 ? 'is' : 'are'} ${otherArticles.length} ${otherArticles.length === 1 ? 'story' : 'stories'} in ${otherEdition}!`
                       : 'Check back later for new stories'}
@@ -358,8 +358,8 @@ function HomeContentInner({
                       alignItems: 'center',
                       gap: 8,
                       padding: '12px 24px',
-                      backgroundColor: '#1a1a1a',
-                      color: '#fff',
+                      backgroundColor: 'var(--color-text)',
+                      color: 'var(--color-bg)',
                       border: 'none',
                       borderRadius: 8,
                       fontSize: 14,
@@ -379,8 +379,8 @@ function HomeContentInner({
                       alignItems: 'center',
                       gap: 8,
                       padding: '12px 24px',
-                      backgroundColor: otherArticles.length > 0 ? '#F3F4F6' : '#1a1a1a',
-                      color: otherArticles.length > 0 ? '#374151' : '#fff',
+                      backgroundColor: otherArticles.length > 0 ? 'var(--color-bg-tertiary)' : 'var(--color-text)',
+                      color: otherArticles.length > 0 ? 'var(--color-text-secondary)' : 'var(--color-bg)',
                       borderRadius: 8,
                       fontSize: 14,
                       fontWeight: 500,
