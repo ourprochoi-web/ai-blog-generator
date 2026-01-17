@@ -46,6 +46,9 @@ export default function SourcesPage() {
   const [showEvaluateModal, setShowEvaluateModal] = useState(false);
   const [evaluateProgress, setEvaluateProgress] = useState<EvaluateProgressEvent | null>(null);
   const [evaluateLog, setEvaluateLog] = useState<EvaluateProgressEvent[]>([]);
+  const [evaluateStalled, setEvaluateStalled] = useState(false);
+  const [lastProgressTime, setLastProgressTime] = useState<number>(0);
+  const [evaluateCleanup, setEvaluateCleanup] = useState<(() => void) | null>(null);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -174,11 +177,20 @@ export default function SourcesPage() {
     setEvaluateProgress(null);
     setEvaluateLog([]);
     setIsEvaluating(true);
+    setEvaluateStalled(false);
+    setLastProgressTime(Date.now());
+
+    // Cancel any existing stream
+    if (evaluateCleanup) {
+      evaluateCleanup();
+    }
 
     const cleanup = streamEvaluatePending(
       (event) => {
         setEvaluateProgress(event);
-        setEvaluateLog((prev) => [...prev.slice(-50), event]); // Keep last 50 events
+        setEvaluateLog((prev) => [...prev.slice(-50), event]);
+        setLastProgressTime(Date.now());
+        setEvaluateStalled(false);
       },
       (error) => {
         setEvaluateProgress({
@@ -186,15 +198,44 @@ export default function SourcesPage() {
           message: error.message,
         });
         setIsEvaluating(false);
+        setEvaluateStalled(false);
       },
       () => {
         setIsEvaluating(false);
+        setEvaluateStalled(false);
         loadSources();
       }
     );
 
-    // Store cleanup function for potential cancellation
-    return cleanup;
+    setEvaluateCleanup(() => cleanup);
+  };
+
+  // Detect stalled connection (no progress for 30 seconds)
+  useEffect(() => {
+    if (!isEvaluating || !lastProgressTime) return;
+
+    const checkInterval = setInterval(() => {
+      const timeSinceLastProgress = Date.now() - lastProgressTime;
+      // 30 seconds without progress = stalled (4s delay + 26s buffer for API call)
+      if (timeSinceLastProgress > 30000) {
+        setEvaluateStalled(true);
+      }
+    }, 5000);
+
+    return () => clearInterval(checkInterval);
+  }, [isEvaluating, lastProgressTime]);
+
+  const handleRetryEvaluate = () => {
+    // Cancel current stream and restart
+    if (evaluateCleanup) {
+      evaluateCleanup();
+    }
+    setEvaluateStalled(false);
+
+    // Small delay before restarting
+    setTimeout(() => {
+      handleEvaluate();
+    }, 500);
   };
 
   const handleCloseEvaluateModal = () => {
@@ -202,10 +243,16 @@ export default function SourcesPage() {
       if (!confirm('Evaluation is still in progress. Close anyway?')) {
         return;
       }
+      // Cancel the stream when closing
+      if (evaluateCleanup) {
+        evaluateCleanup();
+      }
     }
     setShowEvaluateModal(false);
     setEvaluateProgress(null);
     setEvaluateLog([]);
+    setEvaluateStalled(false);
+    setEvaluateCleanup(null);
   };
 
   // Bulk selection handlers
@@ -819,8 +866,25 @@ export default function SourcesPage() {
               </div>
             </div>
 
+            {/* Stalled Warning */}
+            {evaluateStalled && isEvaluating && (
+              <div style={styles.stalledWarning}>
+                <span style={styles.stalledIcon}>⚠️</span>
+                <div style={styles.stalledContent}>
+                  <p style={styles.stalledText}>Connection appears to be stalled. No updates received for 30+ seconds.</p>
+                  <p style={styles.stalledHint}>This may be due to a server restart or network issue. Already evaluated sources are saved.</p>
+                </div>
+                <button
+                  onClick={handleRetryEvaluate}
+                  style={styles.stalledRetryButton}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
             {/* Estimated Time */}
-            {isEvaluating && evaluateProgress?.total && evaluateProgress?.current && (
+            {isEvaluating && !evaluateStalled && evaluateProgress?.total && evaluateProgress?.current && (
               <div style={styles.estimatedTime}>
                 Estimated time remaining: ~{Math.ceil(((evaluateProgress.total - evaluateProgress.current) * 4) / 60)} min
               </div>
@@ -1390,5 +1454,45 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#6B7280',
     textAlign: 'center',
     marginBottom: 16,
+  },
+  stalledWarning: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 16,
+    backgroundColor: '#FEF3C7',
+    border: '1px solid #F59E0B',
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  stalledIcon: {
+    fontSize: 20,
+    flexShrink: 0,
+  },
+  stalledContent: {
+    flex: 1,
+  },
+  stalledText: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: '#92400E',
+    margin: 0,
+    marginBottom: 4,
+  },
+  stalledHint: {
+    fontSize: 12,
+    color: '#B45309',
+    margin: 0,
+  },
+  stalledRetryButton: {
+    padding: '8px 16px',
+    fontSize: 13,
+    fontWeight: 500,
+    color: 'white',
+    backgroundColor: '#F59E0B',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    flexShrink: 0,
   },
 };
