@@ -213,3 +213,35 @@ CREATE INDEX IF NOT EXISTS idx_articles_published_listing ON articles(status, pu
 
 -- Activity logs: For recent logs query
 CREATE INDEX IF NOT EXISTS idx_activity_logs_type_created ON activity_logs(type, created_at DESC);
+
+-- =====================================================
+-- Pipeline State Table
+-- Tracks pipeline execution state for resumption after restart
+-- =====================================================
+CREATE TABLE IF NOT EXISTS pipeline_state (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    edition VARCHAR(10) NOT NULL CHECK (edition IN ('morning', 'evening')),
+
+    -- Step completion tracking
+    scrape_completed BOOLEAN DEFAULT FALSE,
+    evaluate_completed BOOLEAN DEFAULT FALSE,
+    generate_completed BOOLEAN DEFAULT FALSE,
+
+    -- Results from each step (for skipping already done work)
+    scrape_result JSONB DEFAULT '{}',
+    evaluate_result JSONB DEFAULT '{}',
+    generate_result JSONB DEFAULT '{}',
+
+    -- Status
+    status VARCHAR(20) DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed', 'interrupted')),
+    error_message TEXT,
+
+    -- Timestamps
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    last_updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index for finding incomplete pipelines
+CREATE INDEX IF NOT EXISTS idx_pipeline_state_status ON pipeline_state(status) WHERE status = 'running';
+CREATE INDEX IF NOT EXISTS idx_pipeline_state_started ON pipeline_state(started_at DESC);

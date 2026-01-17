@@ -16,6 +16,7 @@ from backend.app.config import SCRAPE_SOURCES, settings
 from backend.app.db.database import get_supabase_client
 from backend.app.db.repositories.activity_log_repo import ActivityLogRepository
 from backend.app.db.repositories.article_repo import ArticleRepository
+from backend.app.db.repositories.pipeline_state_repo import PipelineStateRepository, PipelineState
 from backend.app.db.repositories.source_repo import SourceRepository
 from backend.app.models.activity_log import ActivityStatus, ActivityType
 from backend.app.models.article import ArticleEdition, HeroImageStatus
@@ -512,11 +513,15 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
     return results
 
 
-async def run_full_pipeline() -> dict:
+async def run_full_pipeline(resume_from: Optional[Dict[str, Any]] = None) -> dict:
     """
     Run the full pipeline: scrape -> evaluate -> generate.
 
     Uses a lock to prevent concurrent execution.
+    Supports resumption from interrupted state.
+
+    Args:
+        resume_from: Optional pipeline state to resume from
 
     Returns:
         Combined results from all steps
@@ -528,10 +533,21 @@ async def run_full_pipeline() -> dict:
 
     client = get_supabase_client()
     activity_log_repo = ActivityLogRepository(client)
+    pipeline_state_repo = PipelineStateRepository(client)
     slack = get_slack_notifier()
 
     async with _pipeline_lock:
-        logger.info("Starting full pipeline job")
+        is_resuming = resume_from is not None
+        pipeline_id = resume_from.get("id") if resume_from else None
+
+        if is_resuming:
+            logger.info(f"Resuming pipeline from interrupted state: {pipeline_id}")
+            await slack.notify_pipeline_resumed(
+                edition=resume_from.get("edition", "unknown"),
+                reason="Resuming after server restart",
+            )
+        else:
+            logger.info("Starting full pipeline job")
 
         # Mark any stale running jobs as interrupted (handles app restarts)
         interrupted_count = await activity_log_repo.mark_stale_running_as_interrupted(
@@ -541,41 +557,81 @@ async def run_full_pipeline() -> dict:
             logger.info(f"Marked {interrupted_count} stale running jobs as interrupted")
             await slack.notify_stale_jobs_cleaned(interrupted_count)
 
-        # Slack notification: pipeline started
-        await slack.notify_pipeline_started()
+        # Mark stale pipeline states as interrupted
+        stale_pipelines = await pipeline_state_repo.mark_stale_as_interrupted(timeout_minutes=30)
+        if stale_pipelines > 0:
+            logger.info(f"Marked {stale_pipelines} stale pipeline states as interrupted")
 
-        # Log pipeline start
-        await activity_log_repo.create(
-            ActivityType.PIPELINE,
-            ActivityStatus.RUNNING,
-            "Starting full pipeline (scrape → evaluate → generate)",
-        )
+        # Determine current edition
+        current_edition = get_current_edition()
+
+        # Create new pipeline state if not resuming
+        if not is_resuming:
+            pipeline_state = await pipeline_state_repo.create(current_edition)
+            pipeline_id = pipeline_state.get("id")
+            logger.info(f"Created pipeline state: {pipeline_id}")
+
+            # Slack notification: pipeline started
+            await slack.notify_pipeline_started()
+
+            # Log pipeline start
+            await activity_log_repo.create(
+                ActivityType.PIPELINE,
+                ActivityStatus.RUNNING,
+                "Starting full pipeline (scrape → evaluate → generate)",
+            )
 
         results = {
-            "scrape": {},
-            "evaluate": {},
-            "generate": {},
+            "scrape": resume_from.get("scrape_result", {}) if resume_from else {},
+            "evaluate": resume_from.get("evaluate_result", {}) if resume_from else {},
+            "generate": resume_from.get("generate_result", {}) if resume_from else {},
+            "resumed": is_resuming,
         }
 
         try:
-            # Step 1: Scrape new sources
-            results["scrape"] = await scrape_all_sources()
+            # Step 1: Scrape new sources (skip if already completed)
+            scrape_completed = resume_from.get("scrape_completed", False) if resume_from else False
+            if not scrape_completed:
+                logger.info("Running scrape step...")
+                results["scrape"] = await scrape_all_sources()
+                await pipeline_state_repo.mark_step_completed(pipeline_id, "scrape", results["scrape"])
+                logger.info("Scrape step completed and saved")
+            else:
+                logger.info("Scrape step already completed, skipping...")
 
-            # Step 2: Evaluate pending sources
-            results["evaluate"] = await evaluate_pending_sources()
+            # Step 2: Evaluate pending sources (skip if already completed)
+            evaluate_completed = resume_from.get("evaluate_completed", False) if resume_from else False
+            if not evaluate_completed:
+                logger.info("Running evaluate step...")
+                results["evaluate"] = await evaluate_pending_sources()
+                await pipeline_state_repo.mark_step_completed(pipeline_id, "evaluate", results["evaluate"])
+                logger.info("Evaluate step completed and saved")
+            else:
+                logger.info("Evaluate step already completed, skipping...")
 
-            # Step 3: Generate articles from selected sources
-            results["generate"] = await generate_articles_from_selected()
+            # Step 3: Generate articles from selected sources (skip if already completed)
+            generate_completed = resume_from.get("generate_completed", False) if resume_from else False
+            if not generate_completed:
+                logger.info("Running generate step...")
+                results["generate"] = await generate_articles_from_selected()
+                await pipeline_state_repo.mark_step_completed(pipeline_id, "generate", results["generate"])
+                logger.info("Generate step completed and saved")
+            else:
+                logger.info("Generate step already completed, skipping...")
+
+            # Mark pipeline as completed
+            await pipeline_state_repo.mark_completed(pipeline_id)
 
             # Log pipeline success
             await activity_log_repo.create(
                 ActivityType.PIPELINE,
                 ActivityStatus.SUCCESS,
-                "Full pipeline completed successfully",
+                f"Full pipeline completed successfully{' (resumed)' if is_resuming else ''}",
                 details={
                     "scraped": results["scrape"].get("rss_scraped", 0) + results["scrape"].get("arxiv_scraped", 0),
                     "evaluated": results["evaluate"].get("evaluated", 0),
                     "generated": results["generate"].get("generated", 0),
+                    "resumed": is_resuming,
                 },
             )
 
@@ -599,6 +655,9 @@ async def run_full_pipeline() -> dict:
         except Exception as e:
             logger.error(f"Pipeline error: {str(e)}")
             results["error"] = str(e)
+
+            # Mark pipeline as failed
+            await pipeline_state_repo.mark_failed(pipeline_id, str(e))
 
             # Log pipeline error
             await activity_log_repo.create(
@@ -712,17 +771,82 @@ async def run_full_pipeline_with_progress() -> AsyncGenerator[Dict[str, Any], No
         logger.info("Full pipeline with progress completed")
 
 
+async def check_and_resume_interrupted_pipeline() -> Optional[dict]:
+    """
+    Check for interrupted pipeline and resume if found.
+
+    This is called on server startup to resume any pipeline that was
+    interrupted by a server restart/crash.
+
+    Returns:
+        Pipeline results if resumed, None otherwise
+    """
+    logger.info("Checking for interrupted pipelines to resume...")
+
+    client = get_supabase_client()
+    pipeline_state_repo = PipelineStateRepository(client)
+    slack = get_slack_notifier()
+
+    # Look for incomplete pipeline (running or interrupted, within last 4 hours)
+    incomplete_pipeline = await pipeline_state_repo.get_incomplete(max_age_hours=4)
+
+    if not incomplete_pipeline:
+        logger.info("No interrupted pipelines found")
+        return None
+
+    pipeline_id = incomplete_pipeline.get("id")
+    scrape_done = incomplete_pipeline.get("scrape_completed", False)
+    evaluate_done = incomplete_pipeline.get("evaluate_completed", False)
+    generate_done = incomplete_pipeline.get("generate_completed", False)
+
+    # If all steps are done, mark as completed and skip
+    if scrape_done and evaluate_done and generate_done:
+        logger.info(f"Pipeline {pipeline_id} has all steps completed, marking as completed")
+        await pipeline_state_repo.mark_completed(pipeline_id)
+        return None
+
+    # Determine which step to resume from
+    if not scrape_done:
+        resume_step = "scrape"
+    elif not evaluate_done:
+        resume_step = "evaluate"
+    else:
+        resume_step = "generate"
+
+    logger.info(
+        f"Found interrupted pipeline {pipeline_id}, resuming from {resume_step} step. "
+        f"Progress: scrape={scrape_done}, evaluate={evaluate_done}, generate={generate_done}"
+    )
+
+    # Notify about resumption
+    await slack.notify_pipeline_resumed(
+        edition=incomplete_pipeline.get("edition", "unknown"),
+        reason=f"Resuming from {resume_step} step after server restart",
+    )
+
+    # Resume the pipeline
+    result = await run_full_pipeline(resume_from=incomplete_pipeline)
+
+    return result
+
+
 async def check_and_run_missed_schedule() -> Optional[dict]:
     """
     Check if we missed a scheduled run and execute if needed.
 
     This handles cases where the app was down during scheduled time.
-    Checks activity_logs to see if pipeline ran recently.
+    First checks for interrupted pipelines to resume, then checks for missed schedules.
 
     Returns:
         Pipeline results if run, None otherwise
     """
     logger.info("Checking for missed scheduled runs...")
+
+    # First, check for interrupted pipelines to resume
+    resumed_result = await check_and_resume_interrupted_pipeline()
+    if resumed_result:
+        logger.info("Resumed interrupted pipeline, skipping missed schedule check")
+        return resumed_result
 
     client = get_supabase_client()
     activity_log_repo = ActivityLogRepository(client)
