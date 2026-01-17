@@ -761,15 +761,20 @@ async def check_and_run_missed_schedule() -> Optional[dict]:
         limit=5,
     )
 
-    # Check if any successful pipeline run exists
-    # Note: RUNNING status means interrupted (not completed), so we only check SUCCESS
+    # Check if any pipeline run exists (SUCCESS or RUNNING)
+    # RUNNING means currently in progress or interrupted - either way, don't start another
     pipeline_ran = any(
-        log.get("status") == ActivityStatus.SUCCESS.value
+        log.get("status") in [ActivityStatus.SUCCESS.value, ActivityStatus.RUNNING.value]
         for log in recent_logs
     )
 
     if pipeline_ran:
-        logger.info(f"Pipeline already ran for {edition.value} edition, skipping")
+        status = next(
+            (log.get("status") for log in recent_logs
+             if log.get("status") in [ActivityStatus.SUCCESS.value, ActivityStatus.RUNNING.value]),
+            "unknown"
+        )
+        logger.info(f"Pipeline already ran/running for {edition.value} edition (status: {status}), skipping")
         return None
 
     logger.info(f"Missed {edition.value} edition pipeline detected! Running now...")

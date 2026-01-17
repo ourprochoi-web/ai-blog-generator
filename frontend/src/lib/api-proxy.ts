@@ -10,11 +10,33 @@ import { NextRequest, NextResponse } from 'next/server';
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 
+// Detect if BACKEND_URL is misconfigured (pointing to self)
+function isBackendMisconfigured(): boolean {
+  const vercelUrl = process.env.VERCEL_URL;
+  if (!vercelUrl) return false;
+
+  // Check if BACKEND_URL points to the Vercel deployment itself
+  return BACKEND_URL.includes(vercelUrl) ||
+         BACKEND_URL.includes('ai-blog-generator-five.vercel.app');
+}
+
 export async function proxyToBackend(
   request: NextRequest,
   backendPath: string,
   method: string
 ): Promise<NextResponse> {
+  // Check for misconfiguration that would cause a loop
+  if (isBackendMisconfigured()) {
+    console.error('BACKEND_URL is misconfigured - pointing to Vercel deployment itself. Set BACKEND_URL to your Replit backend URL.');
+    return NextResponse.json(
+      {
+        detail: 'Backend configuration error: BACKEND_URL points to the frontend. Please set BACKEND_URL environment variable to your Replit backend URL.',
+        configured_url: BACKEND_URL
+      },
+      { status: 503 }
+    );
+  }
+
   const url = new URL(request.url);
   const backendUrl = `${BACKEND_URL}${backendPath}${url.search}`;
 
