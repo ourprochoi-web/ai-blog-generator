@@ -10,10 +10,11 @@ import {
   deleteSource,
   scrapeUrl,
   generateArticle,
-  evaluatePendingSources,
+  streamEvaluatePending,
   Source,
   Article,
   formatRelativeTime,
+  EvaluateProgressEvent,
 } from '@/lib/admin-api';
 
 type SourceStatus = 'pending' | 'selected' | 'processed' | 'skipped' | 'failed';
@@ -42,6 +43,9 @@ export default function SourcesPage() {
 
   // Evaluate state
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [showEvaluateModal, setShowEvaluateModal] = useState(false);
+  const [evaluateProgress, setEvaluateProgress] = useState<EvaluateProgressEvent | null>(null);
+  const [evaluateLog, setEvaluateLog] = useState<EvaluateProgressEvent[]>([]);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -165,17 +169,43 @@ export default function SourcesPage() {
     }
   };
 
-  const handleEvaluate = async () => {
-    try {
-      setIsEvaluating(true);
-      const result = await evaluatePendingSources();
-      alert(`Evaluation complete!\nEvaluated: ${result.evaluated_count} sources`);
-      await loadSources();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to evaluate sources');
-    } finally {
-      setIsEvaluating(false);
+  const handleEvaluate = () => {
+    setShowEvaluateModal(true);
+    setEvaluateProgress(null);
+    setEvaluateLog([]);
+    setIsEvaluating(true);
+
+    const cleanup = streamEvaluatePending(
+      (event) => {
+        setEvaluateProgress(event);
+        setEvaluateLog((prev) => [...prev.slice(-50), event]); // Keep last 50 events
+      },
+      (error) => {
+        setEvaluateProgress({
+          type: 'error',
+          message: error.message,
+        });
+        setIsEvaluating(false);
+      },
+      () => {
+        setIsEvaluating(false);
+        loadSources();
+      }
+    );
+
+    // Store cleanup function for potential cancellation
+    return cleanup;
+  };
+
+  const handleCloseEvaluateModal = () => {
+    if (isEvaluating) {
+      if (!confirm('Evaluation is still in progress. Close anyway?')) {
+        return;
+      }
     }
+    setShowEvaluateModal(false);
+    setEvaluateProgress(null);
+    setEvaluateLog([]);
   };
 
   // Bulk selection handlers
@@ -678,6 +708,138 @@ export default function SourcesPage() {
           </div>
         </div>
       )}
+
+      {/* Evaluate Modal */}
+      {showEvaluateModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.evaluateModal}>
+            <div style={styles.evaluateModalHeader}>
+              <h2 style={styles.modalTitle}>Evaluating Sources</h2>
+              <button
+                onClick={handleCloseEvaluateModal}
+                style={styles.closeButton}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Progress Bar */}
+            {evaluateProgress && evaluateProgress.total && (
+              <div style={styles.progressContainer}>
+                <div style={styles.progressBar}>
+                  <div
+                    style={{
+                      ...styles.progressFill,
+                      width: `${((evaluateProgress.current || 0) / evaluateProgress.total) * 100}%`,
+                    }}
+                  />
+                </div>
+                <div style={styles.progressText}>
+                  {evaluateProgress.current || 0} / {evaluateProgress.total} sources
+                  {evaluateProgress.selected_count !== undefined && (
+                    <span style={styles.selectedCount}>
+                      ({evaluateProgress.selected_count} selected)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Current Status */}
+            {evaluateProgress && (
+              <div style={styles.currentStatus}>
+                {evaluateProgress.type === 'start' && (
+                  <p style={styles.statusText}>{evaluateProgress.message}</p>
+                )}
+                {evaluateProgress.type === 'progress' && (
+                  <p style={styles.statusText}>
+                    Evaluating: {evaluateProgress.source_title}...
+                  </p>
+                )}
+                {evaluateProgress.type === 'evaluated' && (
+                  <div style={styles.evaluatedItem}>
+                    <span style={styles.sourceTitle}>{evaluateProgress.source_title}</span>
+                    <span
+                      style={{
+                        ...styles.scoreBadge,
+                        backgroundColor: (evaluateProgress.score || 0) >= 70 ? '#D1FAE5' : (evaluateProgress.score || 0) >= 50 ? '#FEF3C7' : '#FEE2E2',
+                        color: (evaluateProgress.score || 0) >= 70 ? '#065F46' : (evaluateProgress.score || 0) >= 50 ? '#92400E' : '#991B1B',
+                      }}
+                    >
+                      {evaluateProgress.score}
+                    </span>
+                    {evaluateProgress.selected && (
+                      <span style={styles.selectedBadge}>Selected</span>
+                    )}
+                  </div>
+                )}
+                {evaluateProgress.type === 'error' && (
+                  <p style={styles.errorText}>
+                    Error: {evaluateProgress.error || evaluateProgress.message}
+                  </p>
+                )}
+                {evaluateProgress.type === 'complete' && (
+                  <div style={styles.completeBox}>
+                    <p style={styles.completeText}>{evaluateProgress.message}</p>
+                    <div style={styles.completeStats}>
+                      <span>Evaluated: {evaluateProgress.evaluated}</span>
+                      <span>Selected: {evaluateProgress.selected_count || evaluateProgress.selected}</span>
+                      {(evaluateProgress.errors || 0) > 0 && (
+                        <span style={styles.errorCount}>Errors: {evaluateProgress.errors}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Log */}
+            <div style={styles.logContainer}>
+              <div style={styles.logHeader}>Recent Activity</div>
+              <div style={styles.logContent}>
+                {evaluateLog.slice(-20).reverse().map((event, idx) => (
+                  <div key={idx} style={styles.logItem}>
+                    {event.type === 'evaluated' && (
+                      <span>
+                        <span style={styles.logScore}>[{event.score}]</span>{' '}
+                        {event.source_title}
+                        {event.selected && <span style={styles.logSelected}> ✓</span>}
+                      </span>
+                    )}
+                    {event.type === 'error' && (
+                      <span style={styles.logError}>
+                        Error: {event.source_title} - {event.error}
+                      </span>
+                    )}
+                    {event.type === 'start' && (
+                      <span style={styles.logInfo}>{event.message}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Estimated Time */}
+            {isEvaluating && evaluateProgress?.total && evaluateProgress?.current && (
+              <div style={styles.estimatedTime}>
+                Estimated time remaining: ~{Math.ceil(((evaluateProgress.total - evaluateProgress.current) * 4) / 60)} min
+              </div>
+            )}
+
+            {/* Close Button */}
+            {!isEvaluating && (
+              <div style={styles.modalActions}>
+                <button
+                  onClick={handleCloseEvaluateModal}
+                  style={styles.submitButton}
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1074,5 +1236,159 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 13,
     color: '#6B7280',
     marginLeft: 'auto',
+  },
+  // Evaluate Modal Styles
+  evaluateModal: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 600,
+    maxHeight: '80vh',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  evaluateModalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    border: 'none',
+    backgroundColor: '#F3F4F6',
+    fontSize: 20,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressContainer: {
+    marginBottom: 20,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3B82F6',
+    borderRadius: 4,
+    transition: 'width 0.3s ease',
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#374151',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectedCount: {
+    color: '#059669',
+    fontWeight: 500,
+  },
+  currentStatus: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    minHeight: 60,
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#374151',
+    margin: 0,
+  },
+  evaluatedItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectedBadge: {
+    padding: '2px 8px',
+    backgroundColor: '#D1FAE5',
+    color: '#065F46',
+    borderRadius: 4,
+    fontSize: 12,
+    fontWeight: 500,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#DC2626',
+    margin: 0,
+  },
+  completeBox: {
+    textAlign: 'center',
+  },
+  completeText: {
+    fontSize: 16,
+    fontWeight: 500,
+    color: '#059669',
+    margin: '0 0 8px 0',
+  },
+  completeStats: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: 16,
+    fontSize: 14,
+    color: '#374151',
+  },
+  errorCount: {
+    color: '#DC2626',
+  },
+  logContainer: {
+    flex: 1,
+    minHeight: 150,
+    maxHeight: 200,
+    border: '1px solid #E5E7EB',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  logHeader: {
+    padding: '8px 12px',
+    backgroundColor: '#F9FAFB',
+    borderBottom: '1px solid #E5E7EB',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+  },
+  logContent: {
+    padding: 12,
+    maxHeight: 150,
+    overflowY: 'auto',
+    fontSize: 13,
+    fontFamily: 'monospace',
+  },
+  logItem: {
+    marginBottom: 4,
+    lineHeight: 1.4,
+  },
+  logScore: {
+    color: '#6B7280',
+  },
+  logSelected: {
+    color: '#059669',
+    fontWeight: 600,
+  },
+  logError: {
+    color: '#DC2626',
+  },
+  logInfo: {
+    color: '#3B82F6',
+  },
+  estimatedTime: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 16,
   },
 };

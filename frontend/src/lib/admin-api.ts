@@ -294,6 +294,92 @@ export async function evaluatePendingSources(): Promise<EvaluateResponse> {
   });
 }
 
+// Evaluate progress event from SSE stream
+export interface EvaluateProgressEvent {
+  type: 'start' | 'progress' | 'evaluated' | 'error' | 'complete';
+  message?: string;
+  current?: number;
+  total?: number;
+  source_id?: string;
+  source_title?: string;
+  score?: number;
+  selected?: boolean;
+  evaluated_count?: number;
+  selected_count?: number;
+  error?: string;
+  evaluated?: number;
+  errors?: number;
+}
+
+// Stream evaluate pending sources with progress updates
+export function streamEvaluatePending(
+  onProgress: (event: EvaluateProgressEvent) => void,
+  onError?: (error: Error) => void,
+  onComplete?: () => void
+): () => void {
+  const abortController = new AbortController();
+
+  fetch('/api/sources/evaluate/pending/stream', {
+    headers: {
+      'Accept': 'text/event-stream',
+    },
+    signal: abortController.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Authentication required for evaluation.');
+        }
+        if (response.status === 502) {
+          throw new Error('Backend API unavailable.');
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6)) as EvaluateProgressEvent;
+              onProgress(data);
+
+              if (data.type === 'complete' || data.type === 'error') {
+                onComplete?.();
+                return;
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+      onComplete?.();
+    })
+    .catch((error) => {
+      if (error.name !== 'AbortError') {
+        onError?.(error);
+      }
+    });
+
+  // Return cleanup function
+  return () => abortController.abort();
+}
+
 // Pipeline progress event from SSE stream
 export interface PipelineProgressEvent {
   step: 'scrape' | 'evaluate' | 'generate' | 'done' | 'error';

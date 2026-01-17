@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import math
 
 logger = logging.getLogger(__name__)
-from typing import List, Optional
+from typing import AsyncGenerator, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl
 
 from datetime import datetime
@@ -638,7 +641,7 @@ async def evaluate_sources_batch(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to evaluate sources: {str(e)}",
+            detail=f"Failed to batch evaluate sources: {str(e)}",
         )
 
 
@@ -695,3 +698,102 @@ async def evaluate_pending_sources(
             status_code=500,
             detail=f"Failed to evaluate sources: {str(e)}",
         )
+
+
+# Rate limit delay between individual evaluations (seconds)
+EVALUATE_DELAY_SECONDS = 4
+
+
+@router.get("/evaluate/pending/stream")
+async def evaluate_pending_sources_stream(
+    _: bool = Depends(verify_admin_api_key),
+):
+    """
+    Evaluate all pending unreviewed sources with SSE progress streaming.
+
+    Processes sources one by one with rate limiting to avoid API limits.
+    Streams progress updates in real-time.
+    """
+
+    async def generate_progress() -> AsyncGenerator[str, None]:
+        repo = get_source_repo()
+        evaluator = get_evaluator()
+
+        # Get all unreviewed sources
+        sources, total = await repo.get_unreviewed_sources(page=1, page_size=500)
+
+        if not sources:
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'No pending sources to evaluate', 'evaluated': 0, 'total': 0, 'selected': 0})}\n\n"
+            return
+
+        # Send initial status
+        yield f"data: {json.dumps({'type': 'start', 'message': f'Starting evaluation of {len(sources)} sources', 'total': len(sources)})}\n\n"
+
+        evaluated_count = 0
+        selected_count = 0
+        errors = []
+
+        for i, source in enumerate(sources):
+            source_id = source.get("id")
+            source_title = source.get("title", "Unknown")[:50]
+
+            try:
+                # Send progress update
+                yield f"data: {json.dumps({'type': 'progress', 'current': i + 1, 'total': len(sources), 'source_title': source_title, 'message': f'Evaluating {i + 1}/{len(sources)}: {source_title}...'})}\n\n"
+
+                # Evaluate single source
+                evaluation = await evaluator.evaluate_source(
+                    source_type=source.get("type", "article"),
+                    title=source.get("title", ""),
+                    url=source.get("url", ""),
+                    content=source.get("content", ""),
+                    summary=source.get("summary"),
+                )
+
+                # Update database
+                update_data = {
+                    "relevance_score": evaluation.relevance_score,
+                    "reviewed_at": datetime.utcnow().isoformat(),
+                }
+
+                # Auto-select if score meets threshold
+                if evaluation.relevance_score >= settings.AUTO_GENERATE_MIN_SCORE:
+                    update_data["is_selected"] = True
+                    update_data["status"] = SourceStatus.SELECTED.value
+                    update_data["selection_note"] = f"Auto-selected: score {evaluation.relevance_score}"
+                    selected_count += 1
+
+                await repo.update(source_id, update_data)
+                evaluated_count += 1
+
+                # Send evaluation result
+                yield f"data: {json.dumps({'type': 'evaluated', 'current': i + 1, 'total': len(sources), 'source_id': source_id, 'source_title': source_title, 'score': evaluation.relevance_score, 'selected': evaluation.relevance_score >= settings.AUTO_GENERATE_MIN_SCORE, 'evaluated_count': evaluated_count, 'selected_count': selected_count})}\n\n"
+
+                # Rate limit delay (except for last item)
+                if i < len(sources) - 1:
+                    await asyncio.sleep(EVALUATE_DELAY_SECONDS)
+
+            except Exception as e:
+                error_msg = f"Error evaluating {source_title}: {str(e)}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+
+                # Send error but continue
+                yield f"data: {json.dumps({'type': 'error', 'current': i + 1, 'total': len(sources), 'source_id': source_id, 'source_title': source_title, 'error': str(e)})}\n\n"
+
+                # Still add delay to avoid hammering API after error
+                if i < len(sources) - 1:
+                    await asyncio.sleep(EVALUATE_DELAY_SECONDS)
+
+        # Send completion
+        yield f"data: {json.dumps({'type': 'complete', 'message': f'Evaluation complete. {evaluated_count} evaluated, {selected_count} selected.', 'evaluated': evaluated_count, 'total': len(sources), 'selected': selected_count, 'errors': len(errors)})}\n\n"
+
+    return StreamingResponse(
+        generate_progress(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
