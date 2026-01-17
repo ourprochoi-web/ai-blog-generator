@@ -4,13 +4,12 @@ import { useState } from 'react';
 
 export default function NewsletterCTA() {
   const [email, setEmail] = useState('');
+  const [showMessage, setShowMessage] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement newsletter subscription
-    console.log('Subscribe:', email);
+    setShowMessage(true);
     setEmail('');
-    alert('Thanks for subscribing!');
   };
 
   return (
@@ -43,44 +42,65 @@ export default function NewsletterCTA() {
       >
         Get AI Daily Brief delivered to your inbox, twice a day.
       </p>
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          display: 'flex',
-          gap: '8px',
-          maxWidth: '400px',
-          margin: '0 auto',
-        }}
-      >
-        <input
-          type="email"
-          placeholder="your@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
+
+      {showMessage ? (
+        <div
           style={{
-            flex: 1,
-            padding: '12px 16px',
+            padding: '16px 24px',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '8px',
-            border: 'none',
-            fontSize: '15px',
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            padding: '12px 24px',
-            backgroundColor: '#fff',
-            color: '#1a1a1a',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
+            maxWidth: '400px',
+            margin: '0 auto',
           }}
         >
-          Subscribe
-        </button>
-      </form>
+          <p style={{ color: '#fff', fontSize: '15px', margin: 0 }}>
+            Newsletter is coming soon!
+          </p>
+          <p style={{ color: '#9CA3AF', fontSize: '13px', margin: '8px 0 0 0' }}>
+            We&apos;re working on this feature. Check back later.
+          </p>
+        </div>
+      ) : (
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: 'flex',
+            gap: '8px',
+            maxWidth: '400px',
+            margin: '0 auto',
+          }}
+        >
+          <input
+            type="email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              fontSize: '15px',
+            }}
+          />
+          <button
+            type="submit"
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#fff',
+              color: '#1a1a1a',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+          >
+            Subscribe
+          </button>
+        </form>
+      )}
     </div>
   );
 }

@@ -15,6 +15,12 @@ export default function Header({ initialEdition }: HeaderProps) {
   const { theme, toggleTheme, isDark } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
+
+  const handleSubscribeClick = () => {
+    setShowComingSoon(true);
+    setTimeout(() => setShowComingSoon(false), 3000);
+  };
 
   // Get edition from URL or use initial edition
   const edition = (searchParams.get('edition') as 'morning' | 'evening') || initialEdition || 'morning';
@@ -230,39 +236,62 @@ export default function Header({ initialEdition }: HeaderProps) {
           >
             Archive
           </Link>
-          <button
-            className="header-subscribe"
-            style={{
-              padding: '10px 20px',
-              background: isDark
-                ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
-                : 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              boxShadow: isDark
-                ? '0 2px 8px rgba(59, 130, 246, 0.3)'
-                : '0 2px 8px rgba(0, 0, 0, 0.15)',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = isDark
-                ? '0 4px 12px rgba(59, 130, 246, 0.4)'
-                : '0 4px 12px rgba(0, 0, 0, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = isDark
-                ? '0 2px 8px rgba(59, 130, 246, 0.3)'
-                : '0 2px 8px rgba(0, 0, 0, 0.15)';
-            }}
-          >
-            Subscribe
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              className="header-subscribe"
+              onClick={handleSubscribeClick}
+              style={{
+                padding: '10px 20px',
+                background: isDark
+                  ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
+                  : 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                boxShadow: isDark
+                  ? '0 2px 8px rgba(59, 130, 246, 0.3)'
+                  : '0 2px 8px rgba(0, 0, 0, 0.15)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = isDark
+                  ? '0 4px 12px rgba(59, 130, 246, 0.4)'
+                  : '0 4px 12px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = isDark
+                  ? '0 2px 8px rgba(59, 130, 246, 0.3)'
+                  : '0 2px 8px rgba(0, 0, 0, 0.15)';
+              }}
+            >
+              Subscribe
+            </button>
+            {showComingSoon && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '8px',
+                  padding: '10px 16px',
+                  backgroundColor: isDark ? '#1E293B' : '#1a1a1a',
+                  color: '#fff',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                  zIndex: 100,
+                }}
+              >
+                Coming soon!
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Mobile Menu Button */}
@@ -406,7 +435,10 @@ export default function Header({ initialEdition }: HeaderProps) {
             </Link>
             <div style={{ height: 1, backgroundColor: isDark ? '#334155' : '#E5E7EB', margin: '8px 0' }} />
             <button
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={() => {
+                handleSubscribeClick();
+                setIsMobileMenuOpen(false);
+              }}
               style={{
                 fontSize: 18,
                 color: '#fff',
@@ -424,7 +456,7 @@ export default function Header({ initialEdition }: HeaderProps) {
                   : '0 4px 12px rgba(0, 0, 0, 0.15)',
               }}
             >
-              Subscribe
+              {showComingSoon ? 'Coming soon!' : 'Subscribe'}
             </button>
           </nav>
         </div>
