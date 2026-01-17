@@ -110,9 +110,9 @@ export default function ArticleCard({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{
-          backgroundColor: '#fff',
+          backgroundColor: 'var(--color-card-bg)',
           borderRadius: '16px',
-          border: '1px solid #E5E7EB',
+          border: '1px solid var(--color-border)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -130,7 +130,7 @@ export default function ArticleCard({
             className="article-card-image"
             style={{
               width: '100%',
-              backgroundColor: '#F3F4F6',
+              backgroundColor: 'var(--color-bg-tertiary)',
               overflow: 'hidden',
               position: 'relative',
             }}
@@ -196,7 +196,7 @@ export default function ArticleCard({
             >
               {category}
             </button>
-            <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{readTime}</span>
+            <span style={{ fontSize: '12px', color: 'var(--color-text-light)' }}>{readTime}</span>
           </div>
 
           {/* Title */}
@@ -208,7 +208,7 @@ export default function ArticleCard({
                 fontWeight: '400',
                 lineHeight: '1.3',
                 marginBottom: '8px',
-                color: '#1a1a1a',
+                color: 'var(--color-text)',
               }}
             >
               {article.title}
@@ -218,7 +218,7 @@ export default function ArticleCard({
               <p
                 style={{
                   fontSize: '14px',
-                  color: '#6B7280',
+                  color: 'var(--color-text-muted)',
                   lineHeight: '1.5',
                   margin: 0,
                   display: '-webkit-box',
@@ -251,10 +251,10 @@ export default function ArticleCard({
                   }}
                   style={{
                     padding: '4px 8px',
-                    backgroundColor: '#F3F4F6',
+                    backgroundColor: 'var(--color-bg-tertiary)',
                     borderRadius: '12px',
                     fontSize: '11px',
-                    color: '#6B7280',
+                    color: 'var(--color-text-muted)',
                     border: 'none',
                     cursor: 'pointer',
                   }}
@@ -304,7 +304,7 @@ export default function ArticleCard({
           <span
             style={{
               fontSize: '13px',
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
             }}
           >
             {date} · {readTime}
@@ -320,7 +320,7 @@ export default function ArticleCard({
               lineHeight: '1.25',
               marginBottom: '16px',
               letterSpacing: '-0.5px',
-              color: '#1a1a1a',
+              color: 'var(--color-text)',
             }}
           >
             {article.title}
@@ -331,7 +331,7 @@ export default function ArticleCard({
             <p
               className="featured-subtitle"
               style={{
-                color: '#4B5563',
+                color: 'var(--color-text-secondary)',
                 lineHeight: '1.6',
                 margin: 0,
                 fontWeight: '400',
@@ -348,7 +348,7 @@ export default function ArticleCard({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              color: '#1a1a1a',
+              color: 'var(--color-text)',
               fontSize: '14px',
               fontWeight: '500',
             }}
@@ -374,10 +374,10 @@ export default function ArticleCard({
                 onClick={() => onTagClick?.(tag)}
                 style={{
                   padding: '6px 12px',
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: 'var(--color-bg-tertiary)',
                   borderRadius: '16px',
                   fontSize: '13px',
-                  color: '#6B7280',
+                  color: 'var(--color-text-muted)',
                   border: 'none',
                   cursor: 'pointer',
                 }}
@@ -397,7 +397,7 @@ export default function ArticleCard({
       aria-label={`${article.title} - ${category} - ${readTime}`}
       style={{
         padding: '24px 0',
-        borderBottom: '1px solid #E5E7EB',
+        borderBottom: '1px solid var(--color-border)',
       }}
     >
       <Link href={`/article/${article.slug}`} style={{ textDecoration: 'none' }}>
@@ -412,16 +412,16 @@ export default function ArticleCard({
           <span
             style={{
               fontSize: '12px',
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
             }}
           >
             {category}
           </span>
-          <span style={{ color: '#D1D5DB' }}>·</span>
+          <span style={{ color: 'var(--color-text-light)' }}>·</span>
           <span
             style={{
               fontSize: '12px',
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
             }}
           >
             {readTime}
@@ -435,7 +435,7 @@ export default function ArticleCard({
             fontWeight: '400',
             lineHeight: '1.3',
             marginBottom: '8px',
-            color: '#1a1a1a',
+            color: 'var(--color-text)',
           }}
         >
           {article.title}
@@ -445,7 +445,7 @@ export default function ArticleCard({
           <p
             style={{
               fontSize: '15px',
-              color: '#6B7280',
+              color: 'var(--color-text-muted)',
               lineHeight: '1.5',
               margin: 0,
             }}
