@@ -10,11 +10,7 @@ import {
   getArchiveDates,
   getSourceStats,
   Article,
-  formatDate,
-  calculateReadTime,
 } from '@/lib/api';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 interface PageProps {
   params: Promise<{ date: string }>;
@@ -58,22 +54,6 @@ export default async function DatePage({ params }: PageProps) {
 
   const featuredArticle = articles[0];
   const otherArticles = articles.slice(1);
-
-  // Category style helper
-  const getCategoryStyle = (category: string) => {
-    const styles: Record<string, { bg: string; color: string }> = {
-      Breakthrough: { bg: '#FEF3C7', color: '#92400E' },
-      Industry: { bg: '#DBEAFE', color: '#1E40AF' },
-      Regulation: { bg: '#FCE7F3', color: '#9D174D' },
-      Research: { bg: '#D1FAE5', color: '#065F46' },
-    };
-    return styles[category] || { bg: '#F3F4F6', color: '#374151' };
-  };
-
-  const featuredCategory = featuredArticle?.tags[0]?.replace('#', '') || 'AI News';
-  const featuredCategoryStyle = getCategoryStyle(featuredCategory);
-  const featuredDate = featuredArticle ? formatDate(featuredArticle.created_at) : '';
-  const featuredReadTime = featuredArticle ? calculateReadTime(featuredArticle.word_count) : '';
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -169,186 +149,28 @@ export default async function DatePage({ params }: PageProps) {
               </Link>
             </div>
           ) : (
-            <>
-              {/* Featured Article - Full Content */}
+            <section aria-label="Articles from this day">
+              {/* Featured Article Card */}
               {featuredArticle && (
-                <article style={{ marginBottom: '48px' }} aria-label={`Featured: ${featuredArticle.title}`}>
-                  {/* Category & Date */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '20px',
-                    }}
-                  >
-                    <span
-                      style={{
-                        padding: '4px 10px',
-                        backgroundColor: featuredCategoryStyle.bg,
-                        color: featuredCategoryStyle.color,
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                      }}
-                    >
-                      {featuredCategory}
-                    </span>
-                    <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                      {featuredDate} · {featuredReadTime}
-                    </span>
-                  </div>
-
-                  {/* Title */}
-                  <h2
-                    className="font-serif"
-                    style={{
-                      fontSize: '36px',
-                      fontWeight: '400',
-                      lineHeight: '1.2',
-                      marginBottom: '20px',
-                      letterSpacing: '-0.5px',
-                      color: 'var(--color-text)',
-                    }}
-                  >
-                    {featuredArticle.title}
-                  </h2>
-
-                  {/* Subtitle */}
-                  {featuredArticle.subtitle && (
-                    <p
-                      style={{
-                        fontSize: '18px',
-                        color: 'var(--color-text-secondary)',
-                        lineHeight: '1.5',
-                        fontWeight: '300',
-                        marginBottom: '32px',
-                      }}
-                    >
-                      {featuredArticle.subtitle}
-                    </p>
-                  )}
-
-                  {/* Divider */}
-                  <div
-                    style={{
-                      height: '1px',
-                      backgroundColor: 'var(--color-border)',
-                      margin: '0 0 32px 0',
-                    }}
-                  />
-
-                  {/* Full Article Content */}
-                  <div className="article-content">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{featuredArticle.content}</ReactMarkdown>
-                  </div>
-
-                  {/* Tags */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '8px',
-                      flexWrap: 'wrap',
-                      marginTop: '48px',
-                      paddingTop: '24px',
-                      borderTop: '1px solid var(--color-border)',
-                    }}
-                  >
-                    {featuredArticle.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: 'var(--color-bg-tertiary)',
-                          borderRadius: '16px',
-                          fontSize: '13px',
-                          color: 'var(--color-text-secondary)',
-                        }}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* References */}
-                  {featuredArticle.references.length > 0 && (
-                    <div
-                      style={{
-                        marginTop: '32px',
-                        padding: '24px',
-                        backgroundColor: 'var(--color-bg-secondary)',
-                        borderRadius: '12px',
-                        border: '1px solid var(--color-border)',
-                      }}
-                    >
-                      <h4
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          color: 'var(--color-text-muted)',
-                          marginBottom: '12px',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px',
-                        }}
-                      >
-                        References
-                      </h4>
-                      <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                        {featuredArticle.references.map((ref, index) => (
-                          <li
-                            key={index}
-                            style={{
-                              fontSize: '14px',
-                              color: 'var(--color-text-secondary)',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            <a
-                              href={ref.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: 'var(--color-link)', textDecoration: 'none' }}
-                            >
-                              {ref.title}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </article>
+                <ArticleCard article={featuredArticle} featured />
               )}
 
-              {/* Other Articles */}
+              {/* Other Articles as Cards */}
               {otherArticles.length > 0 && (
-                <section aria-label="Other articles from this day">
-                  <div
-                    style={{
-                      height: '1px',
-                      backgroundColor: 'var(--color-border)',
-                      margin: '32px 0',
-                    }}
-                  />
-                  <h3
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: 'var(--color-text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    Also from this day
-                  </h3>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                    gap: '24px',
+                    marginTop: '32px',
+                  }}
+                >
                   {otherArticles.map((article) => (
-                    <ArticleCard key={article.id} article={article} />
+                    <ArticleCard key={article.id} article={article} variant="medium" />
                   ))}
-                </section>
+                </div>
               )}
-            </>
+            </section>
           )}
         </div>
       </main>
