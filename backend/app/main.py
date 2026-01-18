@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -50,19 +51,29 @@ async def lifespan(app: FastAPI):
     start_scheduler()
     logger.info("Scheduler started: runs at 8 AM and 8 PM KST")
 
-    # Check for missed scheduled runs (handles app restart during scheduled time)
-    try:
-        result = await check_and_run_missed_schedule()
-        if result:
-            logger.info(f"Catch-up pipeline completed: {result.get('generate', {}).get('generated', 0)} articles generated")
-    except Exception as e:
-        logger.error(f"Error checking missed schedule: {e}")
+    # Schedule missed schedule check as background task (non-blocking)
+    # This allows the server to start immediately while checking for missed runs
+    asyncio.create_task(_check_missed_schedule_background())
 
     yield
 
     # Shutdown
     stop_scheduler()
     logger.info("Shutting down AI Blog Platform")
+
+
+async def _check_missed_schedule_background():
+    """Background task to check for missed scheduled runs."""
+    # Small delay to ensure server is fully started
+    await asyncio.sleep(5)
+
+    try:
+        logger.info("Background: Checking for missed scheduled runs...")
+        result = await check_and_run_missed_schedule()
+        if result:
+            logger.info(f"Background: Catch-up pipeline completed: {result.get('generate', {}).get('generated', 0)} articles generated")
+    except Exception as e:
+        logger.error(f"Background: Error checking missed schedule: {e}")
 
 
 app = FastAPI(
