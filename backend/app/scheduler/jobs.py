@@ -782,6 +782,8 @@ async def check_and_resume_interrupted_pipeline() -> Optional[dict]:
     Returns:
         Pipeline results if resumed, None otherwise
     """
+    MAX_RESUME_COUNT = 3  # Maximum times to resume a single pipeline
+
     logger.info("Checking for interrupted pipelines to resume...")
 
     client = get_supabase_client()
@@ -799,12 +801,33 @@ async def check_and_resume_interrupted_pipeline() -> Optional[dict]:
     scrape_done = incomplete_pipeline.get("scrape_completed", False)
     evaluate_done = incomplete_pipeline.get("evaluate_completed", False)
     generate_done = incomplete_pipeline.get("generate_completed", False)
+    current_resume_count = incomplete_pipeline.get("resume_count", 0)
 
     # If all steps are done, mark as completed and skip
     if scrape_done and evaluate_done and generate_done:
         logger.info(f"Pipeline {pipeline_id} has all steps completed, marking as completed")
         await pipeline_state_repo.mark_completed(pipeline_id)
         return None
+
+    # Check if we've exceeded max resume attempts
+    if current_resume_count >= MAX_RESUME_COUNT:
+        logger.warning(
+            f"Pipeline {pipeline_id} has exceeded max resume attempts ({current_resume_count}/{MAX_RESUME_COUNT}). "
+            f"Marking as failed to prevent infinite loop."
+        )
+        await pipeline_state_repo.mark_failed(
+            pipeline_id,
+            f"Exceeded max resume attempts ({MAX_RESUME_COUNT}). Server may be unstable."
+        )
+        await slack.notify_pipeline_error(
+            "pipeline",
+            f"Pipeline exceeded max resume attempts ({MAX_RESUME_COUNT}). "
+            f"Please check server stability. Progress: scrape={scrape_done}, evaluate={evaluate_done}, generate={generate_done}"
+        )
+        return None
+
+    # Increment resume count
+    new_resume_count = await pipeline_state_repo.increment_resume_count(pipeline_id)
 
     # Determine which step to resume from
     if not scrape_done:
@@ -815,14 +838,15 @@ async def check_and_resume_interrupted_pipeline() -> Optional[dict]:
         resume_step = "generate"
 
     logger.info(
-        f"Found interrupted pipeline {pipeline_id}, resuming from {resume_step} step. "
+        f"Found interrupted pipeline {pipeline_id}, resuming from {resume_step} step "
+        f"(attempt {new_resume_count}/{MAX_RESUME_COUNT}). "
         f"Progress: scrape={scrape_done}, evaluate={evaluate_done}, generate={generate_done}"
     )
 
     # Notify about resumption
     await slack.notify_pipeline_resumed(
         edition=incomplete_pipeline.get("edition", "unknown"),
-        reason=f"Resuming from {resume_step} step after server restart",
+        reason=f"Resuming from {resume_step} step after server restart (attempt {new_resume_count}/{MAX_RESUME_COUNT})",
     )
 
     # Resume the pipeline

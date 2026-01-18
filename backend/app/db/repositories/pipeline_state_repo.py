@@ -193,6 +193,35 @@ class PipelineStateRepository:
 
         return response.data[0] if response.data else {}
 
+    async def increment_resume_count(self, pipeline_id: str) -> int:
+        """
+        Increment resume count and return the new value.
+
+        Args:
+            pipeline_id: The pipeline state ID
+
+        Returns:
+            New resume count value
+        """
+        # Get current count first
+        response = (
+            self._query()
+            .select("resume_count")
+            .eq("id", pipeline_id)
+            .execute()
+        )
+
+        current_count = response.data[0].get("resume_count", 0) if response.data else 0
+        new_count = current_count + 1
+
+        # Update with new count
+        self._query().update({
+            "resume_count": new_count,
+            "last_updated_at": datetime.utcnow().isoformat(),
+        }).eq("id", pipeline_id).execute()
+
+        return new_count
+
     async def mark_stale_as_interrupted(
         self,
         timeout_minutes: int = 30,
