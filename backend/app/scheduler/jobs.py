@@ -239,7 +239,7 @@ async def evaluate_pending_sources() -> dict:
             update_data = {
                 "relevance_score": evaluation.relevance_score,
                 "suggested_topic": evaluation.suggested_topic,
-                "reviewed_at": datetime.utcnow().isoformat(),
+                "reviewed_at": datetime.now(UTC).isoformat(),
             }
 
             # Auto-select if score meets threshold (score is 0-100)
@@ -298,7 +298,8 @@ def get_current_edition() -> ArticleEdition:
     Morning: before 2 PM KST (before 5:00 UTC)
     Evening: 2 PM KST and after (5:00 UTC and after)
     """
-    utc_now = datetime.utcnow()
+    # Use timezone-aware datetime to ensure correct UTC time
+    utc_now = datetime.now(UTC)
     kst_hour = (utc_now.hour + 9) % 24  # Convert to KST
 
     if kst_hour < 14:  # Before 2 PM KST
@@ -360,7 +361,7 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
     }
 
     # Check how many articles generated for this edition today
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     articles_this_edition = await article_repo.count_by_edition_since(today_start, current_edition)
     remaining_quota = settings.MAX_ARTICLES_PER_EDITION - articles_this_edition
 
@@ -457,7 +458,7 @@ async def generate_articles_from_selected(edition: Optional[ArticleEdition] = No
             # Set hero image status for async generation
             if settings.GENERATE_HERO_IMAGES:
                 article_data["hero_image_status"] = HeroImageStatus.PENDING.value
-                article_data["hero_image_requested_at"] = datetime.utcnow().isoformat()
+                article_data["hero_image_requested_at"] = datetime.now(UTC).isoformat()
             else:
                 article_data["hero_image_status"] = HeroImageStatus.SKIPPED.value
 
@@ -852,8 +853,11 @@ async def check_and_run_missed_schedule() -> Optional[dict]:
     activity_log_repo = ActivityLogRepository(client)
     slack = get_slack_notifier()
 
-    utc_now = datetime.utcnow()
+    # Use timezone-aware datetime to ensure correct UTC time regardless of server timezone
+    utc_now = datetime.now(UTC)
     kst_hour = (utc_now.hour + 9) % 24
+
+    logger.info(f"Catch-up check: UTC time={utc_now.strftime('%H:%M')}, KST hour={kst_hour}")
 
     # Determine which edition we should have run
     # Morning: 8 AM KST (23:00 UTC prev day)
