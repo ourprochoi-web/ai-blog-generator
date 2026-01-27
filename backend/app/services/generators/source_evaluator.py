@@ -146,7 +146,7 @@ Respond ONLY with a JSON array:
         response = await self.llm.generate(
             prompt=prompt,
             temperature=0.3,  # Lower temperature for consistent evaluation
-            max_tokens=2000,  # Evaluation responses are short
+            max_tokens=16000,  # Increased to prevent truncation
         )
 
         return self._parse_evaluation_response(response.content)
@@ -185,7 +185,7 @@ Source {i}:
         response = await self.llm.generate(
             prompt=prompt,
             temperature=0.3,
-            max_tokens=8000,  # Batch evaluation needs more tokens
+            max_tokens=32000,  # Increased for batch evaluation
         )
 
         return self._parse_batch_response(response.content)
